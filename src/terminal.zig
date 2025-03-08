@@ -10,6 +10,15 @@ const terminal = switch (builtin.os.tag) {
     else => @panic("TODO"),
 };
 
+pub const ClearType = enum(u3) {
+    All,
+    Purge,
+    FromCursorDown,
+    FromCursorUp,
+    CurrentLine,
+    UntilNewline,
+};
+
 pub fn isRawModeEnabled() !bool {
     return terminal.isRawModeEnabled();
 }
@@ -48,4 +57,8 @@ pub fn scrollUp(handle: Handle, amount: u16) !void {
 
 pub fn scrollDown(handle: Handle, amount: u16) !void {
     return terminal.scrollDown(handle, amount);
+}
+
+pub fn clear(handle: Handle, clear_type: ClearType) !void {
+    return terminal.clear(handle, clear_type);
 }

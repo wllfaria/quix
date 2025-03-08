@@ -1,6 +1,9 @@
 const std = @import("std");
 const posix = std.posix;
 
+const ansi = @import("../ansi.zig");
+const terminal = @import("../terminal.zig");
+
 var original_terminal_mode_mutex: std.Thread.Mutex = .{};
 var original_terminal_mode: ?std.posix.termios = null;
 
@@ -9,14 +12,6 @@ pub const WindowSize = struct {
     cols: u16,
     width: u16,
     height: u16,
-};
-
-const FileDesc = struct {
-    fd: posix.fd_t,
-
-    pub fn init(fd: posix.fd_t) @This() {
-        return @This(){ .fd = fd };
-    }
 };
 
 pub fn isRawModeEnabled() bool {
@@ -100,46 +95,48 @@ pub fn windowSize(fd: posix.fd_t) !WindowSize {
     return error.IoctlError;
 }
 
-fn writeCsi(ptr: *const anyopaque, bytes: []const u8) !usize {
-    const handle: *const FileDesc = @ptrCast(@alignCast(ptr));
-    return posix.write(handle.fd, bytes);
-}
-
-fn csi(handle: FileDesc, comptime command: []const u8, args: anytype) !void {
-    const writer = std.io.AnyWriter{ .context = &handle, .writeFn = writeCsi };
-    _ = try writer.print("\x1b[" ++ command, args);
-}
-
 pub fn disableLineWrap(fd: posix.fd_t) !void {
-    const handle = FileDesc.init(fd);
-    try csi(handle, "?7l", .{});
+    const handle = ansi.FileDesc.init(fd);
+    try ansi.csi(handle, "?7l", .{});
 }
 
 pub fn enableLineWrap(fd: posix.fd_t) !void {
-    const handle = FileDesc.init(fd);
-    try csi(handle, "?7h", .{});
+    const handle = ansi.FileDesc.init(fd);
+    try ansi.csi(handle, "?7h", .{});
 }
 
 pub fn enterAlternateScreen(fd: posix.fd_t) !void {
-    const handle = FileDesc.init(fd);
-    try csi(handle, "?1049h", .{});
+    const handle = ansi.FileDesc.init(fd);
+    try ansi.csi(handle, "?1049h", .{});
 }
 
 pub fn exitAlternateScreen(fd: posix.fd_t) !void {
-    const handle = FileDesc.init(fd);
-    try csi(handle, "?1049l", .{});
+    const handle = ansi.FileDesc.init(fd);
+    try ansi.csi(handle, "?1049l", .{});
 }
 
 pub fn scrollUp(fd: posix.fd_t, amount: u16) !void {
     if (amount != 0) {
-        const handle = FileDesc.init(fd);
-        try csi(handle, "{}S", .{amount});
+        const handle = ansi.FileDesc.init(fd);
+        try ansi.csi(handle, "{}S", .{amount});
     }
 }
 
 pub fn scrollDown(fd: posix.fd_t, amount: u16) !void {
     if (amount != 0) {
-        const handle = FileDesc.init(fd);
-        try csi(handle, "{}T", .{amount});
+        const handle = ansi.FileDesc.init(fd);
+        try ansi.csi(handle, "{}T", .{amount});
+    }
+}
+
+pub fn clear(fd: posix.fd_t, clear_type: terminal.ClearType) !void {
+    const handle = ansi.FileDesc.init(fd);
+    switch (clear_type) {
+        .All => try ansi.csi(handle, "2J", .{}),
+        .Purge => try ansi.csi(handle, "3J", .{}),
+        .FromCursorDown => try ansi.csi(handle, "J", .{}),
+        .FromCursorUp => try ansi.csi(handle, "1J", .{}),
+        .CurrentLine => try ansi.csi(handle, "2K", .{}),
+        .UntilNewline => try ansi.csi(handle, "K", .{}),
     }
 }

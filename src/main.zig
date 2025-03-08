@@ -1,8 +1,10 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-pub const Terminal = @import("terminal.zig");
-pub const Event = @import("event.zig");
+pub const terminal = @import("terminal.zig");
+pub const event = @import("event.zig");
+pub const cursor = @import("cursor.zig");
+pub const style = @import("style.zig");
 
 pub const Handle = switch (builtin.os.tag) {
     .linux => std.posix.fd_t,

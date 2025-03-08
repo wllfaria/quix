@@ -38,11 +38,11 @@ fn parseAnsi(buf: []const u8) Event {
         switch (result.state) {
             .Initial => result = parseAnsiInitial(byte, buf.len),
             .ESC => result = parseAnsiEsc(byte, idx),
-            .CSI => @panic("TODO"),
+            .CSI => result = parseAnsiCsi(byte),
         }
 
-        if (result.event != null) {
-            return result.event.?;
+        if (result.event) |event| {
+            return event;
         }
     }
 
@@ -57,6 +57,7 @@ fn parseAnsiInitial(byte: u8, len: usize) ParseResult {
                     .code = 0x1B,
                     .kind = .Esc,
                     .mods = .{},
+                    .event_kind = .Press,
                 } };
                 return ParseResult{ .state = .ESC, .event = event };
             }
@@ -68,6 +69,7 @@ fn parseAnsiInitial(byte: u8, len: usize) ParseResult {
                 .code = 0x0D,
                 .kind = .Enter,
                 .mods = .{},
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .Initial, .event = event };
         },
@@ -78,6 +80,7 @@ fn parseAnsiInitial(byte: u8, len: usize) ParseResult {
                     .code = 0x0A,
                     .kind = .Enter,
                     .mods = .{},
+                    .event_kind = .Press,
                 } };
                 return ParseResult{ .state = .Initial, .event = event };
             }
@@ -87,6 +90,7 @@ fn parseAnsiInitial(byte: u8, len: usize) ParseResult {
                 .code = 0x09,
                 .kind = .Tab,
                 .mods = .{},
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .Initial, .event = event };
         },
@@ -95,6 +99,7 @@ fn parseAnsiInitial(byte: u8, len: usize) ParseResult {
                 .code = 0x7F,
                 .kind = .Backspace,
                 .mods = .{},
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .Initial, .event = event };
         },
@@ -104,6 +109,7 @@ fn parseAnsiInitial(byte: u8, len: usize) ParseResult {
                 .code = 0x20,
                 .kind = .Char,
                 .mods = .{ .control = true },
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .Initial, .event = event };
         },
@@ -113,6 +119,7 @@ fn parseAnsiInitial(byte: u8, len: usize) ParseResult {
                     .code = byte - 0x1 + 'a',
                     .kind = .Char,
                     .mods = .{ .control = true },
+                    .event_kind = .Press,
                 } };
                 return ParseResult{ .state = .Initial, .event = event };
             } else if (byte >= 0x1C and byte <= 0x1F) {
@@ -120,6 +127,7 @@ fn parseAnsiInitial(byte: u8, len: usize) ParseResult {
                     .code = byte - 0x1C + '4',
                     .kind = .Char,
                     .mods = .{ .control = true },
+                    .event_kind = .Press,
                 } };
                 return ParseResult{ .state = .Initial, .event = event };
             }
@@ -128,6 +136,7 @@ fn parseAnsiInitial(byte: u8, len: usize) ParseResult {
                 .code = byte,
                 .kind = .Char,
                 .mods = .{},
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .Initial, .event = event };
         },
@@ -137,7 +146,6 @@ fn parseAnsiInitial(byte: u8, len: usize) ParseResult {
 }
 
 fn parseAnsiEsc(byte: u8, idx: usize) ParseResult {
-    std.debug.print("parsing ansi ESCAPE byte {d}", .{byte});
     if (idx == 1) {
         switch (byte) {
             'O' => return ParseResult{ .state = .ESC, .event = null },
@@ -147,6 +155,7 @@ fn parseAnsiEsc(byte: u8, idx: usize) ParseResult {
                     .code = 0x1B,
                     .kind = .Esc,
                     .mods = .{},
+                    .event_kind = .Press,
                 } };
                 return ParseResult{ .state = .ESC, .event = event };
             },
@@ -161,6 +170,7 @@ fn parseAnsiEsc(byte: u8, idx: usize) ParseResult {
                 .code = byte,
                 .kind = .Left,
                 .mods = .{},
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .ESC, .event = event };
         },
@@ -169,6 +179,7 @@ fn parseAnsiEsc(byte: u8, idx: usize) ParseResult {
                 .code = byte,
                 .kind = .Right,
                 .mods = .{},
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .ESC, .event = event };
         },
@@ -177,6 +188,7 @@ fn parseAnsiEsc(byte: u8, idx: usize) ParseResult {
                 .code = byte,
                 .kind = .Up,
                 .mods = .{},
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .ESC, .event = event };
         },
@@ -185,6 +197,7 @@ fn parseAnsiEsc(byte: u8, idx: usize) ParseResult {
                 .code = byte,
                 .kind = .Down,
                 .mods = .{},
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .ESC, .event = event };
         },
@@ -193,6 +206,7 @@ fn parseAnsiEsc(byte: u8, idx: usize) ParseResult {
                 .code = byte,
                 .kind = .Home,
                 .mods = .{},
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .ESC, .event = event };
         },
@@ -201,19 +215,101 @@ fn parseAnsiEsc(byte: u8, idx: usize) ParseResult {
                 .code = byte,
                 .kind = .End,
                 .mods = .{},
+                .event_kind = .Press,
             } };
             return ParseResult{ .state = .ESC, .event = event };
         },
         else => {
+            // F1-F4
+            // we cannot get other function keys, apparently
             if (byte >= 'P' and byte <= 'S') {
                 const event = Event{ .KeyEvent = .{
                     .code = 1 + byte - 'P',
                     .kind = .End,
                     .mods = .{},
+                    .event_kind = .Press,
                 } };
                 return ParseResult{ .state = .ESC, .event = event };
             }
             @panic("TODO");
         },
+    }
+}
+
+fn parseAnsiCsi(byte: u8) ParseResult {
+    switch (byte) {
+        'D' => {
+            const event = Event{ .KeyEvent = .{
+                .code = byte,
+                .kind = .Left,
+                .mods = .{},
+                .event_kind = .Press,
+            } };
+            return ParseResult{ .state = .CSI, .event = event };
+        },
+        'C' => {
+            const event = Event{ .KeyEvent = .{
+                .code = byte,
+                .kind = .Right,
+                .mods = .{},
+                .event_kind = .Press,
+            } };
+            return ParseResult{ .state = .CSI, .event = event };
+        },
+        'A' => {
+            const event = Event{ .KeyEvent = .{
+                .code = byte,
+                .kind = .Up,
+                .mods = .{},
+                .event_kind = .Press,
+            } };
+            return ParseResult{ .state = .CSI, .event = event };
+        },
+        'B' => {
+            const event = Event{ .KeyEvent = .{
+                .code = byte,
+                .kind = .Down,
+                .mods = .{},
+                .event_kind = .Press,
+            } };
+            return ParseResult{ .state = .CSI, .event = event };
+        },
+        'H' => {
+            const event = Event{ .KeyEvent = .{
+                .code = byte,
+                .kind = .Home,
+                .mods = .{},
+                .event_kind = .Press,
+            } };
+            return ParseResult{ .state = .CSI, .event = event };
+        },
+        'F' => {
+            const event = Event{ .KeyEvent = .{
+                .code = byte,
+                .kind = .End,
+                .mods = .{},
+                .event_kind = .Press,
+            } };
+            return ParseResult{ .state = .CSI, .event = event };
+        },
+        'Z' => {
+            const event = Event{ .KeyEvent = .{
+                .code = byte,
+                .kind = .BackTab,
+                .mods = .{ .shift = true },
+                .event_kind = .Press,
+            } };
+            return ParseResult{ .state = .CSI, .event = event };
+        },
+
+        'I' => {
+            const event = Event.FocusGained;
+            return ParseResult{ .state = .CSI, .event = event };
+        },
+        'O' => {
+            const event = Event.FocusLost;
+            return ParseResult{ .state = .CSI, .event = event };
+        },
+        else => @panic("TODO"),
     }
 }

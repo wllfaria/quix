@@ -7,7 +7,11 @@ const event = switch (builtin.os.tag) {
     else => @panic("TODO"),
 };
 
-const EventKind = enum { KeyEvent };
+const EventKind = enum {
+    KeyEvent,
+    FocusGained,
+    FocusLost,
+};
 
 const KeyMods = packed struct {
     shift: bool = false,
@@ -49,14 +53,21 @@ const KeyKind = enum {
     Menu,
 };
 
+const KeyEventKind = enum {
+    Press,
+};
+
 const Key = struct {
     code: u8,
     kind: KeyKind,
     mods: KeyMods,
+    event_kind: KeyEventKind = .Press,
 };
 
 pub const Event = union(EventKind) {
     KeyEvent: Key,
+    FocusGained,
+    FocusLost,
 };
 
 pub fn read(handle: Handle) !Event {
