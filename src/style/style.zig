@@ -252,11 +252,11 @@ pub fn setForegroundColor(fd: posix.fd_t, color: Color) !void {
 
 pub fn setColors(fd: posix.fd_t, colors: Colors) !void {
     if (colors.fg) |fg| {
-        setForegroundColor(fd, fg);
+        try setForegroundColor(fd, fg);
     }
 
     if (colors.bg) |bg| {
-        setBackgroundColor(fd, bg);
+        try setBackgroundColor(fd, bg);
     }
 }
 
@@ -288,4 +288,8 @@ pub fn setStyle(fd: posix.fd_t, content_style: ContentStyle) !void {
 pub fn resetColor(fd: posix.fd_t) !void {
     const handle = ansi.FileDesc.init(fd);
     try ansi.csi(handle, "0m", .{});
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

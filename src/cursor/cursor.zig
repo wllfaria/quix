@@ -1,6 +1,8 @@
+const std = @import("std");
 const builtin = @import("builtin");
 
 const Handle = @import("../main.zig").Handle;
+const terminal = @import("../terminal/terminal.zig");
 
 const cursor_impl = switch (builtin.os.tag) {
     .linux => @import("unix.zig"),
@@ -60,6 +62,10 @@ pub fn moveDown(handle: Handle, amount: u16) !void {
 
 pub fn moveLeft(handle: Handle, amount: u16) !void {
     return cursor_impl.moveLeft(handle, amount);
+}
+
+pub fn position(handle: Handle) !terminal.Size {
+    return cursor_impl.position(handle);
 }
 
 pub fn savePosition(handle: Handle) !void {

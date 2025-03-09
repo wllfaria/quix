@@ -1,9 +1,11 @@
+const std = @import("std");
 const builtin = @import("builtin");
 
 const Handle = @import("../main.zig").Handle;
 
 const event_impl = switch (builtin.os.tag) {
     .linux => @import("unix.zig"),
+    .macos => @import("unix.zig"),
     else => @panic("TODO"),
 };
 
@@ -11,6 +13,23 @@ const EventKind = enum {
     KeyEvent,
     FocusGained,
     FocusLost,
+    MouseEvent,
+
+    pub fn isFocusGained(self: @This()) bool {
+        return self == .FocusGained;
+    }
+
+    pub fn isFocusLost(self: @This()) bool {
+        return self == .FocusLost;
+    }
+
+    pub fn isKey(self: @This()) bool {
+        return self == .KeyEvent;
+    }
+
+    pub fn isMouse(self: @This()) bool {
+        return self == .MouseEvent;
+    }
 };
 
 /// Bitset of every possible modifier on a key event.
@@ -114,9 +133,83 @@ pub const Event = union(EventKind) {
     FocusGained,
     /// Terminal lost focus.
     FocusLost,
+    /// A mouse event
+    MouseEvent: MouseEvent,
+};
+
+pub const MouseEventKind = union(enum) {
+    Down: MouseButton,
+    Up: MouseButton,
+    Drag: MouseButton,
+    Moved,
+    ScrollDown,
+    ScrollUp,
+    ScrollLeft,
+    ScrollRight,
+};
+
+pub const MouseButton = enum {
+    Left,
+    Middle,
+    Right,
+};
+
+pub const MouseEvent = struct {
+    kind: MouseEventKind,
+    column: u16,
+    row: u16,
+    mods: KeyMods,
 };
 
 /// Blocking read from handle until a new event is available.
 pub fn read(handle: Handle) !Event {
     return event_impl.read(handle);
+}
+
+pub fn enableMouse(handle: Handle) !void {
+    return event_impl.enableMouse(handle);
+}
+
+pub fn disableMouse(handle: Handle) !void {
+    return event_impl.disableMouse(handle);
+}
+
+test "event is" {
+    var event = Event.FocusGained;
+    try std.testing.expect(event.isFocusGained());
+    try std.testing.expect(!event.isFocusLost());
+    try std.testing.expect(!event.isKey());
+    try std.testing.expect(!event.isMouse());
+
+    event = Event.FocusLost;
+    try std.testing.expect(!event.isFocusGained());
+    try std.testing.expect(event.isFocusLost());
+    try std.testing.expect(!event.isKey());
+    try std.testing.expect(!event.isMouse());
+
+    event = Event{ .MouseEvent = .{
+        .column = 100,
+        .row = 100,
+        .kind = .{ .Down = .Left },
+        .mods = .{},
+    } };
+    try std.testing.expect(!event.isFocusGained());
+    try std.testing.expect(!event.isFocusLost());
+    try std.testing.expect(!event.isKey());
+    try std.testing.expect(event.isMouse());
+
+    event = Event{ .KeyEvent = .{
+        .code = 65,
+        .event_kind = .Press,
+        .kind = .Char,
+        .mods = .{},
+    } };
+    try std.testing.expect(!event.isFocusGained());
+    try std.testing.expect(!event.isFocusLost());
+    try std.testing.expect(event.isKey());
+    try std.testing.expect(!event.isMouse());
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

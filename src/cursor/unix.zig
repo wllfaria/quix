@@ -3,6 +3,8 @@ const posix = std.posix;
 
 const ansi = @import("../ansi.zig");
 const cursor = @import("cursor.zig");
+const terminal = @import("../terminal/terminal.zig");
+const unix_terminal = @import("../terminal/unix.zig");
 
 pub fn moveTo(fd: posix.fd_t, column: u16, row: u16) !void {
     const handle = ansi.FileDesc.init(fd);

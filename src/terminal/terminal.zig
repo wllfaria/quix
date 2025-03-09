@@ -39,6 +39,11 @@ pub const WindowSize = struct {
     height: u16,
 };
 
+pub const Size = struct {
+    cols: u16,
+    rows: u16,
+};
+
 pub fn isRawModeEnabled() !bool {
     return terminal_impl.isRawModeEnabled();
 }
@@ -53,6 +58,14 @@ pub fn disableRawMode(handle: Handle) !void {
 
 pub fn windowSize(handle: Handle) !WindowSize {
     return terminal_impl.windowSize(handle);
+}
+
+pub fn size(handle: Handle) !Size {
+    return terminal_impl.size(handle);
+}
+
+pub fn setSize(handle: Handle, columns: u16, rows: u16) !void {
+    return terminal_impl.setSize(handle, columns, rows);
 }
 
 pub fn disableLineWrap(handle: Handle) !void {
@@ -81,4 +94,23 @@ pub fn scrollDown(handle: Handle, amount: u16) !void {
 
 pub fn clear(handle: Handle, clear_type: ClearType) !void {
     return terminal_impl.clear(handle, clear_type);
+}
+
+test "raw mode" {
+    const handle = try std.posix.open("/dev/tty", .{ .ACCMODE = .RDWR }, 0);
+    try std.testing.expectEqual(false, try isRawModeEnabled());
+
+    try enableRawMode(handle);
+    try std.testing.expectEqual(true, try isRawModeEnabled());
+
+    // setting raw mode again should do nothing
+    try enableRawMode(handle);
+    try std.testing.expectEqual(true, try isRawModeEnabled());
+
+    try disableRawMode(handle);
+    try std.testing.expectEqual(false, try isRawModeEnabled());
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

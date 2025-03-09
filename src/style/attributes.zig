@@ -1,3 +1,5 @@
+const std = @import("std");
+
 /// Represents an text attribute.
 ///
 /// * Only UNIX and Windows 10 terminals support attributes.
@@ -122,3 +124,15 @@ pub const Attribute = enum(u5) {
         return mask << @intFromEnum(self);
     }
 };
+
+test "attributes" {
+    const ContentAttributes = @import("content_attributes.zig").ContentAttributes;
+    var attributes = ContentAttributes{ .bold = true };
+    try std.testing.expect(attributes.has(.Bold));
+    attributes.set(.Italic);
+    try std.testing.expect(attributes.has(.Italic));
+    attributes.unset(.Italic);
+    try std.testing.expect(!attributes.has(.Italic));
+    attributes.unset(.Bold);
+    try std.testing.expect(attributes.isEmpty());
+}

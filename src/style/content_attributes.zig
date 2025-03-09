@@ -70,7 +70,7 @@ pub const ContentAttributes = packed struct {
     /// If it's not set, this changes nothing.
     pub fn unset(self: *@This(), attribute: Attribute) void {
         switch (attribute) {
-            .Reset => self = ContentAttributes{},
+            .Reset => self.* = ContentAttributes{},
             .Bold => self.bold = false,
             .Dim => self.dim = false,
             .Italic => self.italic = false,
