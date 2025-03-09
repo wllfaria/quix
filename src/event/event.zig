@@ -56,6 +56,35 @@ pub const KeyKind = enum {
     PrintScreen,
     Pause,
     Menu,
+
+    /// Returns a string representation of the key kind
+    pub fn toString(self: @This()) []const u8 {
+        return switch (self) {
+            .Char => "char",
+            .Backspace => "backspace",
+            .Enter => "enter",
+            .Left => "left",
+            .Right => "right",
+            .Up => "up",
+            .Down => "down",
+            .Home => "home",
+            .End => "end",
+            .PageUp => "page_up",
+            .PageDown => "page_down",
+            .Tab => "tab",
+            .BackTab => "back_tab",
+            .Delete => "delete",
+            .Insert => "insert",
+            .Function => "fn",
+            .Esc => "esc",
+            .Capslock => "caps_lock",
+            .ScrollLock => "scroll_lock",
+            .NumLock => "num_lock",
+            .PrintScreen => "print_screen",
+            .Pause => "pause",
+            .Menu => "menu",
+        };
+    }
 };
 
 /// Whick kind of key event was received.
