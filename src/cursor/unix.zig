@@ -1,8 +1,8 @@
 const std = @import("std");
 const posix = std.posix;
 
-const cursor = @import("../cursor.zig");
 const ansi = @import("../ansi.zig");
+const cursor = @import("cursor.zig");
 
 pub fn moveTo(fd: posix.fd_t, column: u16, row: u16) !void {
     const handle = ansi.FileDesc.init(fd);

@@ -2,17 +2,11 @@ const std = @import("std");
 const posix = std.posix;
 
 const ansi = @import("../ansi.zig");
-const terminal = @import("../terminal.zig");
+const terminal = @import("terminal.zig");
+const WindowSize = terminal.WindowSize;
 
 var original_terminal_mode_mutex: std.Thread.Mutex = .{};
 var original_terminal_mode: ?std.posix.termios = null;
-
-pub const WindowSize = struct {
-    rows: u16,
-    cols: u16,
-    width: u16,
-    height: u16,
-};
 
 pub fn isRawModeEnabled() bool {
     original_terminal_mode_mutex.lock();

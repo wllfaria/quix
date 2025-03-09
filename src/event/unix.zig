@@ -1,9 +1,9 @@
 const std = @import("std");
 const posix = std.posix;
 
-const Terminal = @import("terminal.zig");
+const Terminal = @import("../terminal/unix.zig");
 
-const Event = @import("../event.zig").Event;
+const Event = @import("event.zig").Event;
 
 const IO_BUFFER_SIZE: usize = 1024;
 
