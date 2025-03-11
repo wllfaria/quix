@@ -14,15 +14,14 @@ pub fn isRawModeEnabled() bool {
     return original_terminal_mode != null;
 }
 
-pub fn enableRawMode(fd: posix.fd_t) !void {
+pub fn enableRawMode() !void {
     original_terminal_mode_mutex.lock();
     defer original_terminal_mode_mutex.unlock();
 
     // we are already on raw mode
-    if (original_terminal_mode != null) {
-        return;
-    }
+    if (original_terminal_mode != null) return;
 
+    const fd = posix.STDIN_FILENO;
     const original_ios = try posix.tcgetattr(fd);
     var ios = original_ios;
 
@@ -52,18 +51,19 @@ pub fn enableRawMode(fd: posix.fd_t) !void {
     original_terminal_mode = original_ios;
 }
 
-pub fn disableRawMode(fd: posix.fd_t) !void {
+pub fn disableRawMode() !void {
     original_terminal_mode_mutex.lock();
     defer original_terminal_mode_mutex.unlock();
 
     if (original_terminal_mode) |original_mode_ios| {
+        const fd = posix.STDIN_FILENO;
         try posix.tcsetattr(fd, .FLUSH, original_mode_ios);
         // only reset the original mode if we were able to switch back
         original_terminal_mode = null;
     }
 }
 
-pub fn windowSize(fd: posix.fd_t) !WindowSize {
+pub fn windowSize() !WindowSize {
     var window_size = posix.winsize{
         .row = 0,
         .col = 0,
@@ -71,6 +71,7 @@ pub fn windowSize(fd: posix.fd_t) !WindowSize {
         .ypixel = 0,
     };
 
+    const fd = posix.STDIN_FILENO;
     const result = posix.system.ioctl(
         fd,
         posix.T.IOCGWINSZ,
@@ -89,17 +90,17 @@ pub fn windowSize(fd: posix.fd_t) !WindowSize {
     return error.IoctlError;
 }
 
-pub fn setSize(fd: posix.fd_t, columns: u16, rows: u16) !void {
+pub fn setSize(columns: u16, rows: u16) !void {
+    const fd = posix.STDIN_FILENO;
     const handle = ansi.FileDesc.init(fd);
     try ansi.csi(handle, "8;{};{}t", .{ rows, columns });
 }
 
 // when getting the size of the terminal, we can either use the `windowSize`
 // escape sequence, or fallback to using `tput`, if available.
-pub fn size(fd: posix.fd_t) !terminal.Size {
-    const window_size = windowSize(fd) catch {
-        return tputSize();
-    };
+pub fn size() !terminal.Size {
+    const fd = posix.STDIN_FILENO;
+    const window_size = windowSize(fd) catch return tputSize();
 
     return .{
         .cols = window_size.cols,
@@ -148,41 +149,48 @@ pub fn tputValue(arg: []const u8) !u16 {
     return result;
 }
 
-pub fn disableLineWrap(fd: posix.fd_t) !void {
+pub fn disableLineWrap() !void {
+    const fd = posix.STDIN_FILENO;
     const handle = ansi.FileDesc.init(fd);
     try ansi.csi(handle, "?7l", .{});
 }
 
-pub fn enableLineWrap(fd: posix.fd_t) !void {
+pub fn enableLineWrap() !void {
+    const fd = posix.STDIN_FILENO;
     const handle = ansi.FileDesc.init(fd);
     try ansi.csi(handle, "?7h", .{});
 }
 
-pub fn enterAlternateScreen(fd: posix.fd_t) !void {
+pub fn enterAlternateScreen() !void {
+    const fd = posix.STDIN_FILENO;
     const handle = ansi.FileDesc.init(fd);
     try ansi.csi(handle, "?1049h", .{});
 }
 
-pub fn exitAlternateScreen(fd: posix.fd_t) !void {
+pub fn exitAlternateScreen() !void {
+    const fd = posix.STDIN_FILENO;
     const handle = ansi.FileDesc.init(fd);
     try ansi.csi(handle, "?1049l", .{});
 }
 
-pub fn scrollUp(fd: posix.fd_t, amount: u16) !void {
+pub fn scrollUp(amount: u16) !void {
     if (amount != 0) {
+        const fd = posix.STDIN_FILENO;
         const handle = ansi.FileDesc.init(fd);
         try ansi.csi(handle, "{}S", .{amount});
     }
 }
 
-pub fn scrollDown(fd: posix.fd_t, amount: u16) !void {
+pub fn scrollDown(amount: u16) !void {
     if (amount != 0) {
+        const fd = posix.STDIN_FILENO;
         const handle = ansi.FileDesc.init(fd);
         try ansi.csi(handle, "{}T", .{amount});
     }
 }
 
-pub fn clear(fd: posix.fd_t, clear_type: terminal.ClearType) !void {
+pub fn clear(clear_type: terminal.ClearType) !void {
+    const fd = posix.STDIN_FILENO;
     const handle = ansi.FileDesc.init(fd);
     switch (clear_type) {
         .All => try ansi.csi(handle, "2J", .{}),

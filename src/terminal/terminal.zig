@@ -8,6 +8,7 @@ const Handle = @import("../main.zig").Handle;
 const terminal_impl = switch (builtin.os.tag) {
     .linux => @import("unix.zig"),
     .macos => @import("unix.zig"),
+    .windows => @import("windows.zig"),
     else => @panic("TODO"),
 };
 
@@ -48,66 +49,65 @@ pub fn isRawModeEnabled() !bool {
     return terminal_impl.isRawModeEnabled();
 }
 
-pub fn enableRawMode(handle: Handle) !void {
-    return terminal_impl.enableRawMode(handle);
+pub fn enableRawMode() !void {
+    return terminal_impl.enableRawMode();
 }
 
-pub fn disableRawMode(handle: Handle) !void {
-    return terminal_impl.disableRawMode(handle);
+pub fn disableRawMode() !void {
+    return terminal_impl.disableRawMode();
 }
 
-pub fn windowSize(handle: Handle) !WindowSize {
-    return terminal_impl.windowSize(handle);
+pub fn windowSize() !WindowSize {
+    return terminal_impl.windowSize();
 }
 
-pub fn size(handle: Handle) !Size {
-    return terminal_impl.size(handle);
+pub fn size() !Size {
+    return terminal_impl.size();
 }
 
-pub fn setSize(handle: Handle, columns: u16, rows: u16) !void {
-    return terminal_impl.setSize(handle, columns, rows);
+pub fn setSize(columns: u16, rows: u16) !void {
+    return terminal_impl.setSize(columns, rows);
 }
 
-pub fn disableLineWrap(handle: Handle) !void {
-    return terminal_impl.disableLineWrap(handle);
+pub fn disableLineWrap() !void {
+    return terminal_impl.disableLineWrap();
 }
 
-pub fn enableLineWrap(handle: Handle) !void {
-    return terminal_impl.enableLineWrap(handle);
+pub fn enableLineWrap() !void {
+    return terminal_impl.enableLineWrap();
 }
 
-pub fn enterAlternateScreen(handle: Handle) !void {
-    return terminal_impl.enterAlternateScreen(handle);
+pub fn enterAlternateScreen() !void {
+    return terminal_impl.enterAlternateScreen();
 }
 
-pub fn exitAlternateScreen(handle: Handle) !void {
-    return terminal_impl.exitAlternateScreen(handle);
+pub fn exitAlternateScreen() !void {
+    return terminal_impl.exitAlternateScreen();
 }
 
-pub fn scrollUp(handle: Handle, amount: u16) !void {
-    return terminal_impl.scrollUp(handle, amount);
+pub fn scrollUp(amount: u16) !void {
+    return terminal_impl.scrollUp(amount);
 }
 
-pub fn scrollDown(handle: Handle, amount: u16) !void {
-    return terminal_impl.scrollDown(handle, amount);
+pub fn scrollDown(amount: u16) !void {
+    return terminal_impl.scrollDown(amount);
 }
 
-pub fn clear(handle: Handle, clear_type: ClearType) !void {
-    return terminal_impl.clear(handle, clear_type);
+pub fn clear(clear_type: ClearType) !void {
+    return terminal_impl.clear(clear_type);
 }
 
 test "raw mode" {
-    const handle = try std.posix.open("/dev/tty", .{ .ACCMODE = .RDWR }, 0);
     try std.testing.expectEqual(false, try isRawModeEnabled());
 
-    try enableRawMode(handle);
+    try enableRawMode();
     try std.testing.expectEqual(true, try isRawModeEnabled());
 
     // setting raw mode again should do nothing
-    try enableRawMode(handle);
+    try enableRawMode();
     try std.testing.expectEqual(true, try isRawModeEnabled());
 
-    try disableRawMode(handle);
+    try disableRawMode();
     try std.testing.expectEqual(false, try isRawModeEnabled());
 }
 
