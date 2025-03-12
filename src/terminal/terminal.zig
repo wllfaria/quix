@@ -45,6 +45,10 @@ pub const Size = struct {
     rows: u16,
 };
 
+pub fn closeHandle() !void {
+    return terminal_impl.closeHandle();
+}
+
 pub fn isRawModeEnabled() !bool {
     return terminal_impl.isRawModeEnabled();
 }

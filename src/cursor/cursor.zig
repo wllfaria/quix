@@ -28,70 +28,70 @@ pub const CursorStyle = enum(u7) {
     SteadyBar,
 };
 
-pub fn moveTo(handle: Handle, column: u16, row: u16) !void {
-    return cursor_impl.moveTo(handle, column, row);
+pub fn moveTo(column: u16, row: u16) !void {
+    return cursor_impl.moveTo(column, row);
 }
 
-pub fn moveToPreviousLine(handle: Handle, amount: u16) !void {
-    return cursor_impl.moveToPreviousLine(handle, amount);
+pub fn moveToPreviousLine(amount: u16) !void {
+    return cursor_impl.moveToPreviousLine(amount);
 }
 
-pub fn moveToNextLine(handle: Handle, amount: u16) !void {
-    return cursor_impl.moveToNextLine(handle, amount);
+pub fn moveToNextLine(amount: u16) !void {
+    return cursor_impl.moveToNextLine(amount);
 }
 
-pub fn moveToColumn(handle: Handle, column: u16) !void {
-    return cursor_impl.moveToColumn(handle, column);
+pub fn moveToColumn(column: u16) !void {
+    return cursor_impl.moveToColumn(column);
 }
 
-pub fn moveToRow(handle: Handle, row: u16) !void {
-    return cursor_impl.moveToRow(handle, row);
+pub fn moveToRow(row: u16) !void {
+    return cursor_impl.moveToRow(row);
 }
 
-pub fn moveTop(handle: Handle, amount: u16) !void {
-    return cursor_impl.moveTop(handle, amount);
+pub fn moveTop(amount: u16) !void {
+    return cursor_impl.moveTop(amount);
 }
 
-pub fn moveRight(handle: Handle, amount: u16) !void {
-    return cursor_impl.moveRight(handle, amount);
+pub fn moveRight(amount: u16) !void {
+    return cursor_impl.moveRight(amount);
 }
 
-pub fn moveDown(handle: Handle, amount: u16) !void {
-    return cursor_impl.moveDown(handle, amount);
+pub fn moveDown(amount: u16) !void {
+    return cursor_impl.moveDown(amount);
 }
 
-pub fn moveLeft(handle: Handle, amount: u16) !void {
-    return cursor_impl.moveLeft(handle, amount);
+pub fn moveLeft(amount: u16) !void {
+    return cursor_impl.moveLeft(amount);
 }
 
-pub fn position(handle: Handle) !terminal.Size {
-    return cursor_impl.position(handle);
+pub fn position() !terminal.Size {
+    return cursor_impl.position();
 }
 
-pub fn savePosition(handle: Handle) !void {
-    return cursor_impl.savePosition(handle);
+pub fn savePosition() !void {
+    return cursor_impl.savePosition();
 }
 
-pub fn restorePosition(handle: Handle) !void {
-    return cursor_impl.restorePosition(handle);
+pub fn restorePosition() !void {
+    return cursor_impl.restorePosition();
 }
 
-pub fn hide(handle: Handle) !void {
-    return cursor_impl.hide(handle);
+pub fn hide() !void {
+    return cursor_impl.hide();
 }
 
-pub fn show(handle: Handle) !void {
-    return cursor_impl.show(handle);
+pub fn show() !void {
+    return cursor_impl.show();
 }
 
-pub fn enableBlinking(handle: Handle) !void {
-    return cursor_impl.enableBlinking(handle);
+pub fn enableBlinking() !void {
+    return cursor_impl.enableBlinking();
 }
 
-pub fn disableBlinking(handle: Handle) !void {
-    return cursor_impl.disableBlinking(handle);
+pub fn disableBlinking() !void {
+    return cursor_impl.disableBlinking();
 }
 
-pub fn setCursorStyle(handle: Handle, style: CursorStyle) !void {
-    return cursor_impl.setCursorStyle(handle, style);
+pub fn setCursorStyle(style: CursorStyle) !void {
+    return cursor_impl.setCursorStyle(style);
 }

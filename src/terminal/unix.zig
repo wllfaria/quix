@@ -2,11 +2,24 @@ const std = @import("std");
 const posix = std.posix;
 
 const ansi = @import("../ansi.zig");
+const FileDesc = @import("../file_desc.zig").FileDesc;
 const terminal = @import("terminal.zig");
 const WindowSize = terminal.WindowSize;
 
 var original_terminal_mode_mutex: std.Thread.Mutex = .{};
 var original_terminal_mode: ?std.posix.termios = null;
+
+var global_tty_fd_mutex: std.Thread.Mutex = .{};
+var global_tty_fd: ?FileDesc = null;
+
+pub fn closeHandle() !void {
+    global_tty_fd_mutex.lock();
+    defer global_tty_fd_mutex.unlock();
+
+    if (global_tty_fd) |handle| {
+        if (handle.close_handle) posix.close(handle.handle);
+    }
+}
 
 pub fn isRawModeEnabled() bool {
     original_terminal_mode_mutex.lock();
@@ -21,8 +34,8 @@ pub fn enableRawMode() !void {
     // we are already on raw mode
     if (original_terminal_mode != null) return;
 
-    const fd = posix.STDIN_FILENO;
-    const original_ios = try posix.tcgetattr(fd);
+    const fd = try getFd();
+    const original_ios = try posix.tcgetattr(fd.handle);
     var ios = original_ios;
 
     // see termios(3) man page
@@ -46,7 +59,7 @@ pub fn enableRawMode() !void {
     ios.cflag.CSIZE = .CS8;
     ios.cflag.PARENB = false;
 
-    try posix.tcsetattr(fd, .FLUSH, ios);
+    try posix.tcsetattr(fd.handle, .FLUSH, ios);
     // only set the original mode if we were able to switch
     original_terminal_mode = original_ios;
 }
@@ -56,8 +69,8 @@ pub fn disableRawMode() !void {
     defer original_terminal_mode_mutex.unlock();
 
     if (original_terminal_mode) |original_mode_ios| {
-        const fd = posix.STDIN_FILENO;
-        try posix.tcsetattr(fd, .FLUSH, original_mode_ios);
+        const fd = try getFd();
+        try posix.tcsetattr(fd.handle, .FLUSH, original_mode_ios);
         // only reset the original mode if we were able to switch back
         original_terminal_mode = null;
     }
@@ -71,9 +84,9 @@ pub fn windowSize() !WindowSize {
         .ypixel = 0,
     };
 
-    const fd = posix.STDIN_FILENO;
+    const fd = try getFd();
     const result = posix.system.ioctl(
-        fd,
+        fd.handle,
         posix.T.IOCGWINSZ,
         @intFromPtr(&window_size),
     );
@@ -91,16 +104,14 @@ pub fn windowSize() !WindowSize {
 }
 
 pub fn setSize(columns: u16, rows: u16) !void {
-    const fd = posix.STDIN_FILENO;
-    const handle = ansi.FileDesc.init(fd);
-    try ansi.csi(handle, "8;{};{}t", .{ rows, columns });
+    const fd = try getFd();
+    try ansi.csi(fd.writer(), "8;{};{}t", .{ rows, columns });
 }
 
 // when getting the size of the terminal, we can either use the `windowSize`
 // escape sequence, or fallback to using `tput`, if available.
 pub fn size() !terminal.Size {
-    const fd = posix.STDIN_FILENO;
-    const window_size = windowSize(fd) catch return tputSize();
+    const window_size = windowSize() catch return tputSize();
 
     return .{
         .cols = window_size.cols,
@@ -150,54 +161,66 @@ pub fn tputValue(arg: []const u8) !u16 {
 }
 
 pub fn disableLineWrap() !void {
-    const fd = posix.STDIN_FILENO;
-    const handle = ansi.FileDesc.init(fd);
-    try ansi.csi(handle, "?7l", .{});
+    const fd = try getFd();
+    try ansi.csi(fd.writer(), "?7l", .{});
 }
 
 pub fn enableLineWrap() !void {
-    const fd = posix.STDIN_FILENO;
-    const handle = ansi.FileDesc.init(fd);
-    try ansi.csi(handle, "?7h", .{});
+    const fd = try getFd();
+    try ansi.csi(fd.writer(), "?7h", .{});
 }
 
 pub fn enterAlternateScreen() !void {
-    const fd = posix.STDIN_FILENO;
-    const handle = ansi.FileDesc.init(fd);
-    try ansi.csi(handle, "?1049h", .{});
+    const fd = try getFd();
+    try ansi.csi(fd.writer(), "?1049h", .{});
 }
 
 pub fn exitAlternateScreen() !void {
-    const fd = posix.STDIN_FILENO;
-    const handle = ansi.FileDesc.init(fd);
-    try ansi.csi(handle, "?1049l", .{});
+    const fd = try getFd();
+    try ansi.csi(fd.writer(), "?1049l", .{});
 }
 
 pub fn scrollUp(amount: u16) !void {
     if (amount != 0) {
-        const fd = posix.STDIN_FILENO;
-        const handle = ansi.FileDesc.init(fd);
-        try ansi.csi(handle, "{}S", .{amount});
+        const fd = try getFd();
+        try ansi.csi(fd.writer(), "{}S", .{amount});
     }
 }
 
 pub fn scrollDown(amount: u16) !void {
     if (amount != 0) {
-        const fd = posix.STDIN_FILENO;
-        const handle = ansi.FileDesc.init(fd);
-        try ansi.csi(handle, "{}T", .{amount});
+        const fd = try getFd();
+        try ansi.csi(fd.writer(), "{}T", .{amount});
     }
 }
 
 pub fn clear(clear_type: terminal.ClearType) !void {
-    const fd = posix.STDIN_FILENO;
-    const handle = ansi.FileDesc.init(fd);
+    const fd = try getFd();
     switch (clear_type) {
-        .All => try ansi.csi(handle, "2J", .{}),
-        .Purge => try ansi.csi(handle, "3J", .{}),
-        .FromCursorDown => try ansi.csi(handle, "J", .{}),
-        .FromCursorUp => try ansi.csi(handle, "1J", .{}),
-        .CurrentLine => try ansi.csi(handle, "2K", .{}),
-        .UntilNewline => try ansi.csi(handle, "K", .{}),
+        .All => try ansi.csi(fd.writer(), "2J", .{}),
+        .Purge => try ansi.csi(fd.writer(), "3J", .{}),
+        .FromCursorDown => try ansi.csi(fd.writer(), "J", .{}),
+        .FromCursorUp => try ansi.csi(fd.writer(), "1J", .{}),
+        .CurrentLine => try ansi.csi(fd.writer(), "2K", .{}),
+        .UntilNewline => try ansi.csi(fd.writer(), "K", .{}),
     }
+}
+
+pub fn getFd() !FileDesc {
+    global_tty_fd_mutex.lock();
+    defer global_tty_fd_mutex.unlock();
+
+    if (global_tty_fd) |fd| return fd;
+
+    const is_tty = posix.isatty(posix.STDIN_FILENO);
+
+    const fd = if (is_tty) blk: {
+        break :blk FileDesc.init(posix.STDIN_FILENO);
+    } else blk: {
+        const fd = try posix.open("/dev/tty", .{ .ACCMODE = .RDWR }, 0);
+        break :blk FileDesc{ .handle = fd, .close_handle = true };
+    };
+
+    global_tty_fd = fd;
+    return fd;
 }

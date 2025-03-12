@@ -6,6 +6,7 @@ pub const RgbColor = @import("colors.zig").RgbColor;
 pub const ColoredSection = @import("colors.zig").ColoredSection;
 pub const Attribute = @import("attributes.zig").Attribute;
 pub const ContentAttributes = @import("content_attributes.zig").ContentAttributes;
+const unix_terminal = @import("../terminal/unix.zig");
 
 const ansi = @import("../ansi.zig");
 
@@ -199,95 +200,97 @@ pub fn new(content: []const u8) StyledContent {
     };
 }
 
-pub fn printStyled(fd: posix.fd_t, styled_content: StyledContent) !void {
+pub fn printStyled(styled_content: StyledContent) !void {
+    const fd = try unix_terminal.getFd();
     var reset_bg = false;
     var reset_fg = false;
     var reset = false;
 
     if (styled_content.style.bg) |bg| {
-        try setBackgroundColor(fd, bg);
+        try setBackgroundColor(bg);
         reset_bg = true;
     }
     if (styled_content.style.fg) |fg| {
-        try setForegroundColor(fd, fg);
+        try setForegroundColor(fg);
         reset_fg = true;
     }
     if (!styled_content.style.attributes.isEmpty()) {
-        try setAttributes(fd, styled_content.style.attributes);
+        try setAttributes(styled_content.style.attributes);
         reset = true;
     }
 
-    _ = try posix.write(fd, styled_content.content);
+    _ = try posix.write(fd.handle, styled_content.content);
 
     if (reset) {
         // resetting the colors will also reset the attributes.
-        try resetColor(fd);
+        try resetColor();
         return;
     }
     if (reset_bg) {
-        try setBackgroundColor(fd, .Reset);
+        try setBackgroundColor(.Reset);
     }
     if (reset_fg) {
-        try setForegroundColor(fd, .Reset);
+        try setForegroundColor(.Reset);
     }
 }
 
-pub fn print(fd: posix.fd_t, content: []const u8) !void {
-    _ = try posix.write(fd, content);
+pub fn print(content: []const u8) !void {
+    const fd = try unix_terminal.getFd();
+    _ = try posix.write(fd.handle, content);
 }
 
-pub fn setBackgroundColor(fd: posix.fd_t, color: Color) !void {
-    const handle = ansi.FileDesc.init(fd);
+pub fn setBackgroundColor(color: Color) !void {
+    const fd = try unix_terminal.getFd();
     var buffer: [16]u8 = undefined;
     const color_str = color.asStr(.Background, buffer[0..]);
-    try ansi.csi(handle, "{s}m", .{color_str});
+    try ansi.csi(fd.writer(), "{s}m", .{color_str});
 }
 
-pub fn setForegroundColor(fd: posix.fd_t, color: Color) !void {
-    const handle = ansi.FileDesc.init(fd);
+pub fn setForegroundColor(color: Color) !void {
+    const fd = try unix_terminal.getFd();
     var buffer: [16]u8 = undefined;
     const color_str = color.asStr(.Foreground, buffer[0..]);
-    try ansi.csi(handle, "{s}m", .{color_str});
+    try ansi.csi(fd.writer(), "{s}m", .{color_str});
 }
 
-pub fn setColors(fd: posix.fd_t, colors: Colors) !void {
+pub fn setColors(colors: Colors) !void {
     if (colors.fg) |fg| {
-        try setForegroundColor(fd, fg);
+        try setForegroundColor(fg);
     }
 
     if (colors.bg) |bg| {
-        try setBackgroundColor(fd, bg);
+        try setBackgroundColor(bg);
     }
 }
 
-pub fn setAttribute(fd: posix.fd_t, attribute: Attribute) !void {
-    const handle = ansi.FileDesc.init(fd);
-    try ansi.csi(handle, "{}m", .{attribute.sgr()});
+pub fn setAttribute(attribute: Attribute) !void {
+    const fd = try unix_terminal.getFd();
+    try ansi.csi(fd.writer(), "{}m", .{attribute.sgr()});
 }
 
-pub fn setAttributes(fd: posix.fd_t, attributes: ContentAttributes) !void {
+pub fn setAttributes(attributes: ContentAttributes) !void {
     for (Attribute.iter()) |attribute| {
         if (attributes.has(attribute)) {
-            try setAttribute(fd, attribute);
+            try setAttribute(attribute);
         }
     }
 }
 
-pub fn setStyle(fd: posix.fd_t, content_style: ContentStyle) !void {
+pub fn setStyle(content_style: ContentStyle) !void {
     if (content_style.bg) |bg| {
-        try setBackgroundColor(fd, bg);
+        try setBackgroundColor(bg);
     }
     if (content_style.fg) |fg| {
-        try setForegroundColor(fd, fg);
+        try setForegroundColor(fg);
     }
     if (!content_style.attributes.isEmpty()) {
-        try setAttributes(fd, content_style.attributes);
+        try setAttributes(content_style.attributes);
     }
 }
 
-pub fn resetColor(fd: posix.fd_t) !void {
-    const handle = ansi.FileDesc.init(fd);
-    try ansi.csi(handle, "0m", .{});
+pub fn resetColor() !void {
+    const fd = try unix_terminal.getFd();
+    try ansi.csi(fd.writer(), "0m", .{});
 }
 
 test {

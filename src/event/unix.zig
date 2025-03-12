@@ -3,6 +3,7 @@ const posix = std.posix;
 
 const ansi = @import("../ansi.zig");
 const event = @import("event.zig");
+const FileDesc = @import("../file_desc.zig");
 const terminal = @import("../terminal/unix.zig");
 
 const Event = @import("event.zig").Event;
@@ -23,36 +24,37 @@ const ParseResult = struct {
 };
 
 /// Enables mouse tracking
-pub fn enableMouse(fd: posix.fd_t) !void {
-    const handle = ansi.FileDesc.init(fd);
+pub fn enableMouse() !void {
+    const fd = try terminal.getFd();
     // Normal tracking: Send mouse X & Y on button press and release
-    try ansi.csi(handle, "?1000h", .{});
+    try ansi.csi(fd, "?1000h", .{});
     // Button-event tracking: Report button motion events (dragging)
-    try ansi.csi(handle, "?1002h", .{});
+    try ansi.csi(fd, "?1002h", .{});
     // Any-event tracking: Report all motion events
-    try ansi.csi(handle, "?1003h", .{});
+    try ansi.csi(fd, "?1003h", .{});
     // RXVT mouse mode: Allows mouse coordinates of >223
-    try ansi.csi(handle, "?1015h", .{});
+    try ansi.csi(fd, "?1015h", .{});
     // SGR mouse mode: Allows mouse coordinates of >223, preferred over RXVT mode
-    try ansi.csi(handle, "?1006h", .{});
+    try ansi.csi(fd, "?1006h", .{});
 }
 
 /// Disables mouse tracking
-pub fn disableMouse(fd: posix.fd_t) !void {
-    const handle = ansi.FileDesc.init(fd);
+pub fn disableMouse() !void {
+    const fd = try terminal.getFd();
     // The inverse commands of EnableMouseCapture, in reverse order.
-    try ansi.csi(handle, "?1006l", .{});
-    try ansi.csi(handle, "?1015l", .{});
-    try ansi.csi(handle, "?1003l", .{});
-    try ansi.csi(handle, "?1002l", .{});
-    try ansi.csi(handle, "?1000l", .{});
+    try ansi.csi(fd, "?1006l", .{});
+    try ansi.csi(fd, "?1015l", .{});
+    try ansi.csi(fd, "?1003l", .{});
+    try ansi.csi(fd, "?1002l", .{});
+    try ansi.csi(fd, "?1000l", .{});
 }
 
-pub fn read(fd: posix.fd_t) !Event {
+pub fn read() !Event {
+    const fd = try terminal.getFd();
     var buf: [IO_BUFFER_SIZE]u8 = .{0} ** IO_BUFFER_SIZE;
 
     while (true) {
-        const bytes_read = try posix.read(fd, &buf);
+        const bytes_read = try posix.read(fd.handle, &buf);
         if (bytes_read > 0) {
             return parseAnsi(buf[0..bytes_read]);
         }

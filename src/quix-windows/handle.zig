@@ -7,7 +7,28 @@ const ConsoleError = @import("main.zig").ConsoleError;
 pub const Handle = struct {
     inner: HANDLE,
     is_exclusive: bool,
+
+    pub fn writer(self: *const @This()) std.io.AnyWriter {
+        return std.io.AnyWriter{ .context = self, .writeFn = &writeAll };
+    }
 };
+
+pub fn writeAll(context: *const anyopaque, bytes: []const u8) ConsoleError!usize {
+    const self: *Handle = @constCast(@ptrCast(@alignCast(context)));
+
+    var bytes_written: windows.DWORD = 0;
+    const success = windows.kernel32.WriteFile(
+        self.inner,
+        bytes.ptr,
+        @as(windows.DWORD, @intCast(bytes.len)),
+        &bytes_written,
+        null,
+    );
+
+    if (success == 0) return ConsoleError.FailedToWriteToHandle;
+    if (bytes_written != bytes.len) return ConsoleError.FailedToWriteToHandle;
+    return bytes_written;
+}
 
 fn makeExclusive(handle: HANDLE) Handle {
     return Handle{ .inner = handle, .is_exclusive = true };

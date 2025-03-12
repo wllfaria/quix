@@ -12,3 +12,9 @@ pub extern "kernel32" fn CreateConsoleScreenBuffer(
 pub extern "kernel32" fn SetConsoleActiveScreenBuffer(
     hConsoleOutput: windows.HANDLE,
 ) callconv(windows.WINAPI) windows.BOOL;
+
+pub extern "kernel32" fn SetConsoleWindowInfo(
+    hConsoleOutput: windows.HANDLE,
+    bAbsolute: windows.BOOL,
+    small_rect: *const windows.SMALL_RECT,
+) callconv(windows.WINAPI) windows.BOOL;

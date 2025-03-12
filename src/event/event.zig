@@ -162,16 +162,16 @@ pub const MouseEvent = struct {
 };
 
 /// Blocking read from handle until a new event is available.
-pub fn read(handle: Handle) !Event {
-    return event_impl.read(handle);
+pub fn read() !Event {
+    return event_impl.read();
 }
 
-pub fn enableMouse(handle: Handle) !void {
-    return event_impl.enableMouse(handle);
+pub fn enableMouse() !void {
+    return event_impl.enableMouse();
 }
 
-pub fn disableMouse(handle: Handle) !void {
-    return event_impl.disableMouse(handle);
+pub fn disableMouse() !void {
+    return event_impl.disableMouse();
 }
 
 test "event is" {
