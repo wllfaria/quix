@@ -27,26 +27,26 @@ const ParseResult = struct {
 pub fn enableMouse() !void {
     const fd = try terminal.getFd();
     // Normal tracking: Send mouse X & Y on button press and release
-    try ansi.csi(fd, "?1000h", .{});
+    try ansi.csi(fd.writer(), ansi.MOUSE_NORMAL_TRACKING_ENABLE, .{});
     // Button-event tracking: Report button motion events (dragging)
-    try ansi.csi(fd, "?1002h", .{});
+    try ansi.csi(fd.writer(), ansi.MOUSE_BUTTON_EVENT_TRACKING_ENABLE, .{});
     // Any-event tracking: Report all motion events
-    try ansi.csi(fd, "?1003h", .{});
+    try ansi.csi(fd.writer(), ansi.MOUSE_ANY_EVENT_TRACKING_ENABLE, .{});
     // RXVT mouse mode: Allows mouse coordinates of >223
-    try ansi.csi(fd, "?1015h", .{});
+    try ansi.csi(fd.writer(), ansi.MOUSE_RXVT_TRACKING_ENABLE, .{});
     // SGR mouse mode: Allows mouse coordinates of >223, preferred over RXVT mode
-    try ansi.csi(fd, "?1006h", .{});
+    try ansi.csi(fd.writer(), ansi.MOUSE_SGR_TRACKING_ENABLE, .{});
 }
 
 /// Disables mouse tracking
 pub fn disableMouse() !void {
     const fd = try terminal.getFd();
     // The inverse commands of EnableMouseCapture, in reverse order.
-    try ansi.csi(fd, "?1006l", .{});
-    try ansi.csi(fd, "?1015l", .{});
-    try ansi.csi(fd, "?1003l", .{});
-    try ansi.csi(fd, "?1002l", .{});
-    try ansi.csi(fd, "?1000l", .{});
+    try ansi.csi(fd.writer(), ansi.MOUSE_SGR_TRACKING_DISABLE, .{});
+    try ansi.csi(fd.writer(), ansi.MOUSE_RXVT_TRACKING_DISABLE, .{});
+    try ansi.csi(fd.writer(), ansi.MOUSE_ANY_EVENT_TRACKING_DISABLE, .{});
+    try ansi.csi(fd.writer(), ansi.MOUSE_BUTTON_EVENT_TRACKING_DISABLE, .{});
+    try ansi.csi(fd.writer(), ansi.MOUSE_NORMAL_TRACKING_DISABLE, .{});
 }
 
 pub fn read() !Event {

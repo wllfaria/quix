@@ -1,11 +1,14 @@
 const std = @import("std");
 const windows = std.os.windows;
-const csbi = @import("csbi.zig");
-const quix_winapi = @import("main.zig");
-const ffi = @import("ffi.zig");
-const Handle = @import("handle.zig").Handle;
-const ConsoleError = quix_winapi.ConsoleError;
 const DWORD = windows.DWORD;
+
+const csbi = @import("csbi.zig");
+const ffi = @import("ffi/ffi.zig");
+const Handle = @import("handle.zig").Handle;
+const quix_winapi = @import("main.zig");
+const ConsoleError = quix_winapi.ConsoleError;
+
+const U32_MAX: u32 = 0xFFFFFFFF;
 
 pub fn getMode(handle: Handle) ConsoleError!u32 {
     var console_mode: DWORD = 0;
@@ -46,4 +49,40 @@ pub fn setInfo(
     const small_rect = rect.toSmallRect();
     const result = ffi.SetConsoleWindowInfo(handle.inner, absolute, &small_rect);
     if (result == 0) return ConsoleError.FailedToSetWindowInfo;
+}
+
+pub fn numberOfConsoleInputEvents(handle: Handle) ConsoleError!u32 {
+    var buf_len: DWORD = 0;
+    const result = ffi.GetNumberOfConsoleInputEvents(handle.inner, &buf_len);
+    if (result == 0) return ConsoleError.FailedToReadInput;
+    return buf_len;
+}
+
+const MAX_EVENTS = 32;
+var read_input_buffer: [MAX_EVENTS]ffi.INPUT_RECORD = undefined;
+
+pub fn readConsoleInput(
+    handle: Handle,
+    buffer: []quix_winapi.InputRecord,
+) ConsoleError![]const quix_winapi.InputRecord {
+    if (buffer.len == 0) return buffer[0..0];
+
+    const read_len = try readInput(handle, &read_input_buffer);
+    if (read_len == 0) return buffer[0..0];
+
+    const amount_to_copy: usize = @min(read_len, buffer.len);
+    for (buffer[0..amount_to_copy], 0..) |ir, idx| {
+        buffer[idx] = quix_winapi.InputRecord.fromRaw(ir);
+    }
+
+    return buffer[0..amount_to_copy];
+}
+
+fn readInput(handle: Handle, buf: []ffi.INPUT_RECORD) ConsoleError!usize {
+    std.debug.assert(buf.len < U32_MAX);
+
+    var records_len: DWORD = 0;
+    const result = ffi.ReadConsoleInputW(handle.inner, &buf, buf.len, &records_len);
+    if (result == 0) return ConsoleError.FailedToReadInput;
+    return @as(usize, records_len);
 }

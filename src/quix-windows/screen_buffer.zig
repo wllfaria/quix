@@ -3,11 +3,10 @@ const windows = std.os.windows;
 const DWORD = windows.DWORD;
 const HANDLE = windows.HANDLE;
 
-const ffi = @import("ffi.zig");
-
-const quix_winapi = @import("main.zig");
-const Handle = @import("handle.zig").Handle;
 const ConsoleError = @import("main.zig").ConsoleError;
+const ffi = @import("ffi/ffi.zig");
+const Handle = @import("handle.zig").Handle;
+const quix_winapi = @import("main.zig");
 
 pub const ScreenBuffer = struct {
     handle: Handle,
