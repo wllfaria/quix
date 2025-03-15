@@ -1,96 +1,94 @@
 const std = @import("std");
-const posix = std.posix;
 
-const ansi = @import("../ansi.zig");
+const ansi = @import("../ansi/ansi.zig");
 const cursor = @import("cursor.zig");
-const terminal = @import("../terminal/terminal.zig");
 const unix_terminal = @import("../terminal/unix.zig");
 const FileDesc = @import("../file_desc.zig");
 
 pub fn moveTo(column: u16, row: u16) !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "{};{}H", .{ row + 1, column + 1 });
+    return ansi.csi(fd.writer(), ansi.CURSOR_MOVE_TO, .{ row + 1, column + 1 });
 }
 
 pub fn moveToPreviousLine(amount: u16) !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "{}F", .{amount});
+    return ansi.csi(fd.writer(), ansi.CURSOR_MOVE_PREV_LINE, .{amount});
 }
 
 pub fn moveToNextLine(amount: u16) !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "{}E", .{amount});
+    return ansi.csi(fd.writer(), ansi.CURSOR_MOVE_NEXT_LINE, .{amount});
 }
 
 pub fn moveToColumn(column: u16) !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "{}G", .{column});
+    return ansi.csi(fd.writer(), ansi.CURSOR_MOVE_TO_COLUMN, .{column});
 }
 
 pub fn moveToRow(row: u16) !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "{}d", .{row});
+    return ansi.csi(fd.writer(), ansi.CURSOR_MOVE_TO_ROW, .{row});
 }
 
 pub fn moveTop(amount: u16) !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "{}A", .{amount});
+    return ansi.csi(fd.writer(), ansi.CURSOR_MOVE_TOP, .{amount});
 }
 
 pub fn moveRight(amount: u16) !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "{}C", .{amount});
+    return ansi.csi(fd.writer(), ansi.CURSOR_MOVE_RIGHT, .{amount});
 }
 
 pub fn moveDown(amount: u16) !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "{}B", .{amount});
+    return ansi.csi(fd.writer(), ansi.CURSOR_MOVE_DOWN, .{amount});
 }
 
 pub fn moveLeft(amount: u16) !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "{}D", .{amount});
+    return ansi.csi(fd.writer(), ansi.CURSOR_MOVE_LEFT, .{amount});
 }
 
 pub fn savePosition() !void {
     const fd = try unix_terminal.getFd();
-    return ansi.esc(fd.writer(), "7", .{});
+    return ansi.esc(fd.writer(), ansi.CURSOR_SAVE_POSITION, .{});
 }
 
 pub fn restorePosition() !void {
     const fd = try unix_terminal.getFd();
-    return ansi.esc(fd.writer(), "8", .{});
+    return ansi.esc(fd.writer(), ansi.CURSOR_RESTORE_POSITION, .{});
 }
 
 pub fn hide() !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "?25l", .{});
+    return ansi.csi(fd.writer(), ansi.CURSOR_HIDE, .{});
 }
 
 pub fn show() !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "?25h", .{});
+    return ansi.csi(fd.writer(), ansi.CURSOR_SHOW, .{});
 }
 
 pub fn enableBlinking() !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "?12h", .{});
+    return ansi.csi(fd.writer(), ansi.CURSOR_ENABLE_BLINKING, .{});
 }
 
 pub fn disableBlinking() !void {
     const fd = try unix_terminal.getFd();
-    return ansi.csi(fd.writer(), "?12l", .{});
+    return ansi.csi(fd.writer(), ansi.CURSOR_DISABLE_BLINKING, .{});
 }
 
 pub fn setCursorStyle(style: cursor.CursorStyle) !void {
     const fd = try unix_terminal.getFd();
     switch (style) {
-        .DefaultUserShape => return ansi.csi(fd.writer(), "0 q", .{}),
-        .BlinkingBlock => return ansi.csi(fd.writer(), "1 q", .{}),
-        .SteadyBlock => return ansi.csi(fd.writer(), "2 q", .{}),
-        .BlinkingUnderScore => return ansi.csi(fd.writer(), "3 q", .{}),
-        .SteadyUnderScore => return ansi.csi(fd.writer(), "4 q", .{}),
-        .BlinkingBar => return ansi.csi(fd.writer(), "5 q", .{}),
-        .SteadyBar => return ansi.csi(fd.writer(), "6 q", .{}),
+        .DefaultUserShape => return ansi.csi(fd.writer(), ansi.CURSOR_SHAPE_USER_DEFAULT, .{}),
+        .BlinkingBlock => return ansi.csi(fd.writer(), ansi.CURSOR_SHAPE_BLINKING_BLOCK, .{}),
+        .SteadyBlock => return ansi.csi(fd.writer(), ansi.CURSOR_SHAPE_STEADY_BLOCK, .{}),
+        .BlinkingUnderScore => return ansi.csi(fd.writer(), ansi.CURSOR_SHAPE_BLINKING_UNDERSCORE, .{}),
+        .SteadyUnderScore => return ansi.csi(fd.writer(), ansi.CURSOR_SHAPE_STEADY_UNDERSCORE, .{}),
+        .BlinkingBar => return ansi.csi(fd.writer(), ansi.CURSOR_SHAPE_BLINKING_BAR, .{}),
+        .SteadyBar => return ansi.csi(fd.writer(), ansi.CURSOR_SHAPE_STEADY_BAR, .{}),
     }
 }

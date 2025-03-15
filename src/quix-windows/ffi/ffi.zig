@@ -4,6 +4,7 @@ const windows = std.os.windows;
 const structs = @import("structs.zig");
 
 pub const INPUT_RECORD = structs.INPUT_RECORD;
+pub const INPUT_RECORD_EVENT = structs.INPUT_RECORD_EVENT;
 pub const KEY_EVENT_RECORD = structs.KEY_EVENT_RECORD;
 pub const MENU_EVENT_RECORD = structs.MENU_EVENT_RECORD;
 pub const MOUSE_EVENT_RECORD = structs.MOUSE_EVENT_RECORD;
@@ -30,7 +31,7 @@ pub extern "kernel32" fn SetConsoleWindowInfo(
 
 pub extern "kernel32" fn ReadConsoleInputW(
     hConsoleInput: windows.HANDLE,
-    lpBuffer: []const structs.INPUT_RECORD,
+    lpBuffer: [*]structs.INPUT_RECORD,
     nLength: windows.DWORD,
     lpNumberOfEventsRead: *windows.DWORD,
 ) callconv(windows.WINAPI) windows.BOOL;

@@ -1,7 +1,7 @@
 const std = @import("std");
 const posix = std.posix;
 
-const ansi = @import("../ansi.zig");
+const ansi = @import("../ansi/ansi.zig");
 const FileDesc = @import("../file_desc.zig").FileDesc;
 const terminal = @import("terminal.zig");
 const WindowSize = terminal.WindowSize;

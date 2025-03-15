@@ -1,7 +1,7 @@
 const std = @import("std");
 const windows = std.os.windows;
 
-pub const KEY_EVENT_UCHAR = union(enum) {
+pub const KEY_EVENT_UCHAR = extern union {
     UnicodeChar: windows.WCHAR,
     CHAR: windows.CHAR,
 };
@@ -34,7 +34,7 @@ pub const FOCUS_EVENT_RECORD = extern struct {
     bSetFocus: windows.BOOL,
 };
 
-pub const INPUT_RECORD_EVENT = union(enum) {
+pub const INPUT_RECORD_EVENT = extern union {
     KeyEvent: KEY_EVENT_RECORD,
     MouseEvent: MOUSE_EVENT_RECORD,
     WindowBufferSizeEvent: WINDOW_BUFFER_SIZE_RECORD,

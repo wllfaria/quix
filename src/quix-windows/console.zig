@@ -71,7 +71,7 @@ pub fn readConsoleInput(
     if (read_len == 0) return buffer[0..0];
 
     const amount_to_copy: usize = @min(read_len, buffer.len);
-    for (buffer[0..amount_to_copy], 0..) |ir, idx| {
+    for (read_input_buffer[0..amount_to_copy], 0..) |ir, idx| {
         buffer[idx] = quix_winapi.InputRecord.fromRaw(ir);
     }
 
@@ -82,7 +82,12 @@ fn readInput(handle: Handle, buf: []ffi.INPUT_RECORD) ConsoleError!usize {
     std.debug.assert(buf.len < U32_MAX);
 
     var records_len: DWORD = 0;
-    const result = ffi.ReadConsoleInputW(handle.inner, &buf, buf.len, &records_len);
+    const result = ffi.ReadConsoleInputW(
+        handle.inner,
+        buf.ptr,
+        @as(u32, @intCast(buf.len)),
+        &records_len,
+    );
     if (result == 0) return ConsoleError.FailedToReadInput;
     return @as(usize, records_len);
 }

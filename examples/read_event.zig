@@ -26,9 +26,7 @@ pub fn main() !void {
         const event = try quix.event.read();
         switch (event) {
             .KeyEvent => |key| {
-                if (key.code == 'q') {
-                    break;
-                }
+                if (key.code == 'q') break;
 
                 if (line > 10) {
                     line = 5;

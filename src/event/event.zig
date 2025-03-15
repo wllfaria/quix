@@ -6,6 +6,7 @@ const Handle = @import("../main.zig").Handle;
 const event_impl = switch (builtin.os.tag) {
     .linux => @import("unix.zig"),
     .macos => @import("unix.zig"),
+    .windows => @import("windows.zig"),
     else => @panic("TODO"),
 };
 

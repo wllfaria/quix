@@ -1,6 +1,7 @@
 const std = @import("std");
 const windows = std.os.windows;
 const DWORD = windows.DWORD;
+const WORD = windows.WORD;
 
 const ffi = @import("ffi/ffi.zig");
 
@@ -36,6 +37,12 @@ pub const MOUSE_MOVED: DWORD                    = 0x0001;
 pub const DOUBLE_CLICK: DWORD                   = 0x0002;
 pub const MOUSE_WHEELED: DWORD                  = 0x0004;
 pub const MOUSE_HWHEELED: DWORD                 = 0x0008;
+
+pub const FOCUS_EVENT: WORD                     = 0x0010;
+pub const KEY_EVENT: WORD                       = 0x0001;
+pub const MENU_EVENT: WORD                      = 0x0008;
+pub const MOUSE_EVENT: WORD                     = 0x0002;
+pub const WINDOW_BUFFER_SIZE_EVENT: WORD        = 0x0004;
 // zig fmt: on
 
 pub const ConsoleError = error{
@@ -84,6 +91,13 @@ pub const WindowPosition = struct {
 pub const Coord = struct {
     x: i16,
     y: i16,
+
+    pub fn fromRaw(coord: windows.COORD) @This() {
+        return @This(){
+            .x = coord.X,
+            .y = coord.Y,
+        };
+    }
 };
 
 pub const InputRecord = union(enum) {
@@ -94,12 +108,31 @@ pub const InputRecord = union(enum) {
     MenuEvent: MenuEventRecord,
 
     pub fn fromRaw(input_record: ffi.INPUT_RECORD) @This() {
-        return switch (input_record.Event) {
-            .KeyEvent => |ke| KeyEventRecord.fromRaw(ke),
-            .MouseEvent => |me| MouseEventRecord.fromRaw(me),
-            .WindowBufferSizeEvent => |wbe| WindowBufferSizeRecord.fromRaw(wbe),
-            .MenuEvent => |me| MenuEventRecord.fromRaw(me),
-            .FocusEvent => |fe| FocusEventRecord.fromRaw(fe),
+        return switch (input_record.EventType) {
+            KEY_EVENT => InputRecord{
+                .KeyEvent = KeyEventRecord.fromRaw(input_record.Event.KeyEvent),
+            },
+            MOUSE_EVENT => InputRecord{
+                .MouseEvent = MouseEventRecord.fromRaw(
+                    input_record.Event.MouseEvent,
+                ),
+            },
+            WINDOW_BUFFER_SIZE_EVENT => InputRecord{
+                .WindowBufferSizeEvent = WindowBufferSizeRecord.fromRaw(
+                    input_record.Event.WindowBufferSizeEvent,
+                ),
+            },
+            MENU_EVENT => InputRecord{
+                .MenuEvent = MenuEventRecord.fromRaw(
+                    input_record.Event.MenuEvent,
+                ),
+            },
+            FOCUS_EVENT => InputRecord{
+                .FocusEvent = FocusEventRecord.fromRaw(
+                    input_record.Event.FocusEvent,
+                ),
+            },
+            else => unreachable,
         };
     }
 };
@@ -119,10 +152,7 @@ pub const KeyEventRecord = struct {
             .virtual_key_code = key_event.wVirtualKeyCode,
             .virtual_scan_code = key_event.wVirtualScanCode,
             .control_key_state = @bitCast(key_event.dwControlKeyState),
-            .u_char = switch (key_event.uChar) {
-                .UnicodeChar => |ch| ch,
-                .CHAR => |ch| @as(u16, ch),
-            },
+            .u_char = @as(u16, key_event.uChar.UnicodeChar),
         };
     }
 };

@@ -1,27 +1,52 @@
 const std = @import("std");
 const posix = std.posix;
 
-const ansi = @import("../ansi.zig");
-const event = @import("event.zig");
+const ansi = @import("../ansi/ansi.zig");
 const FileDesc = @import("../file_desc.zig");
-const terminal = @import("../terminal/windows.zig");
 const quix_winapi = @import("../quix-windows/main.zig");
 const console = quix_winapi.console;
-
+const terminal = @import("../terminal/windows.zig");
+const event = @import("event.zig");
 const Event = @import("event.zig").Event;
 
-pub fn read() !Event {
-    // if (terminal.hasAnsiSupport()) {
-    //     return error.NotSupported;
-    // }
-    const handle = try quix_winapi.handle.getCurrentInHandle();
-    var buffer: [32]quix_winapi.InputRecord = undefined;
-    const input = try console.readConsoleInput(handle, &buffer);
-    std.debug.print("{any}\n", .{input});
+pub fn enableMouse() !void {
+    const handle = try quix_winapi.handle.getCurrentOutHandle();
+    if (terminal.hasAnsiSupport()) {
+        ansi.enableMouse(handle.writer());
+        return;
+    }
 
-    return Event.FocusGained;
+    @panic("TODO");
 }
 
-pub fn enableMouse() !void {}
+pub fn disableMouse() !void {
+    const handle = try quix_winapi.handle.getCurrentOutHandle();
+    if (terminal.hasAnsiSupport()) {
+        ansi.disableMouse(handle.writer());
+        return;
+    }
 
-pub fn disableMouse() !void {}
+    @panic("TODO");
+}
+
+pub fn read() !Event {
+    if (terminal.hasAnsiSupport()) return readFile();
+
+    const handle = try quix_winapi.handle.getCurrentInHandle();
+    var buffer: [32]quix_winapi.InputRecord = undefined;
+    _ = try console.readConsoleInput(handle, &buffer);
+
+    @panic("TODO");
+}
+
+fn readFile() !Event {
+    const handle = try quix_winapi.handle.getCurrentInHandle();
+    var buf: [ansi.IO_BUFFER_SIZE]u8 = undefined;
+
+    while (true) {
+        const bytes_read = try std.os.windows.ReadFile(handle.inner, &buf, null);
+        if (bytes_read > 0) {
+            return ansi.parser.parseAnsi(buf[0..bytes_read]);
+        }
+    }
+}

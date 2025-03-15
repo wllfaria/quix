@@ -3,7 +3,7 @@ const windows = std.os.windows;
 
 const quix_winapi = @import("../quix-windows/main.zig");
 const ConsoleError = quix_winapi.ConsoleError;
-const ansi = @import("../ansi.zig");
+const ansi = @import("../ansi/ansi.zig");
 const console = quix_winapi.console;
 const screen_buffer = quix_winapi.screen_buffer;
 const terminal = @import("terminal.zig");

@@ -7,6 +7,7 @@ const terminal = @import("../terminal/terminal.zig");
 const cursor_impl = switch (builtin.os.tag) {
     .linux => @import("unix.zig"),
     .macos => @import("unix.zig"),
+    .windows => @import("windows.zig"),
     else => @panic("TODO"),
 };
 
