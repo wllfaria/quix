@@ -1,10 +1,11 @@
 const std = @import("std");
 const posix = std.posix;
 
+const quix_winapi = @import("quix_winapi");
+const console = quix_winapi.console;
+
 const ansi = @import("../ansi/ansi.zig");
 const FileDesc = @import("../file_desc.zig");
-const quix_winapi = @import("../quix-windows/main.zig");
-const console = quix_winapi.console;
 const terminal = @import("../terminal/windows.zig");
 const event = @import("event.zig");
 const Event = @import("event.zig").Event;

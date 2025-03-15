@@ -1,11 +1,12 @@
 const std = @import("std");
 const windows = std.os.windows;
 
-const quix_winapi = @import("../quix-windows/main.zig");
+const quix_winapi = @import("quix_winapi");
 const ConsoleError = quix_winapi.ConsoleError;
-const ansi = @import("../ansi/ansi.zig");
 const console = quix_winapi.console;
 const screen_buffer = quix_winapi.screen_buffer;
+
+const ansi = @import("../ansi/ansi.zig");
 const terminal = @import("terminal.zig");
 
 const COOKED_MODE_FLAGS: windows.DWORD =

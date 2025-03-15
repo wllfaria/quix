@@ -3,12 +3,17 @@
     .version = "0.0.0",
     .fingerprint = 0x4a1c9bbe2cdb0c58,
     .minimum_zig_version = "0.14.0",
-    .dependencies = .{},
+    .dependencies = .{
+        .quix_winapi = .{
+            .url = "git+https://github.com/wllfaria/quix-winapi#c1ef72dcc7b6d2fd0bd5404a573f0902822dc7f2",
+            .hash = "quix_winapi-0.0.0-XdkcUzdUAABnUWujKJjfb6uP2pZVtpCyRLrszyAh2fHb",
+        },
+    },
     .paths = .{
         "build.zig",
         "build.zig.zon",
         "src",
         "LICENSE",
-        //"README.md",
+        "README.md",
     },
 }

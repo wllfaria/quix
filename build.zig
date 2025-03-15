@@ -5,11 +5,17 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
     const root_source_file = b.path("src/main.zig");
 
+    const quix_winapi = b.dependency("quix_winapi", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     const quix_mod = b.addModule("quix", .{
         .root_source_file = root_source_file,
         .target = target,
         .optimize = optimize,
     });
+    quix_mod.addImport("quix_winapi", quix_winapi.module("quix_winapi"));
 
     const lib_unit_tests = b.addTest(.{
         .root_module = quix_mod,

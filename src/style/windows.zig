@@ -1,6 +1,7 @@
-const quix_winapi = @import("../quix-windows/main.zig");
-const terminal = @import("../terminal/windows.zig");
+const quix_winapi = @import("quix_winapi");
+
 const ansi = @import("../ansi/ansi.zig");
+const terminal = @import("../terminal/windows.zig");
 
 pub fn print(content: []const u8) !void {
     const handle = try quix_winapi.handle.getCurrentOutHandle();

@@ -1,9 +1,10 @@
 const std = @import("std");
 
+const quix_winapi = @import("quix_winapi");
+
 const ansi = @import("../ansi/ansi.zig");
-const cursor = @import("cursor.zig");
-const quix_winapi = @import("../quix-windows/main.zig");
 const terminal = @import("../terminal/windows.zig");
+const cursor = @import("cursor.zig");
 
 pub fn moveTo(column: u16, row: u16) !void {
     if (terminal.hasAnsiSupport()) {
