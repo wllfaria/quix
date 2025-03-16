@@ -11,6 +11,11 @@ const cursor_impl = switch (builtin.os.tag) {
     else => @panic("TODO"),
 };
 
+pub const Position = struct {
+    column: u16,
+    row: u16,
+};
+
 /// Available cursor styles.
 pub const CursorStyle = enum(u7) {
     /// The default user-configured cursor shape.
