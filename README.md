@@ -2,6 +2,8 @@
 
 Quix is a terminal manipulation library written in zig.
 
+![Quix running example](./extras/gifs/read_event.gif "Quix running example")
+
 ## Table of Contents
 - [Quix](#Quix)
     - [Table of Contents](#table-of-contents)
