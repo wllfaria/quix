@@ -6,6 +6,10 @@ pub const event = @import("event/event.zig");
 pub const cursor = @import("cursor/cursor.zig");
 pub const style = @import("style/style.zig");
 
+pub const Error = error{
+    Terminal,
+};
+
 pub const Handle = switch (builtin.os.tag) {
     .linux => std.posix.fd_t,
     .windows => std.os.windows.HANDLE,

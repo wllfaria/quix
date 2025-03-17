@@ -5,12 +5,11 @@ const quix_winapi = @import("quix_winapi");
 const ansi = @import("../ansi/ansi.zig");
 const terminal = @import("../terminal/windows.zig");
 const cursor = @import("cursor.zig");
-
-const U64_MAX = 0xFFFFFFFF_FFFFFFFF;
+const constants = @import("../constants.zig");
 
 /// The position of the cursor, written when you save the cursor's position in
 /// legacy terminals which don't support ansi.
-var SAVED_CURSOR_POS = std.atomic.Value(u64).init(U64_MAX);
+var SAVED_CURSOR_POS = std.atomic.Value(u64).init(constants.U64_MAX);
 
 fn convertRelativeY(csbi: quix_winapi.csbi.Csbi, relative_y: i16) i16 {
     const terminal_size = csbi.terminalSize();

@@ -1,0 +1,1 @@
+pub const U64_MAX: u64 = 0xFFFFFFFF_FFFFFFFF;

@@ -45,6 +45,10 @@ pub const Size = struct {
     rows: u16,
 };
 
+pub fn hasAnsiSupport() bool {
+    return terminal_impl.hasAnsiSupport();
+}
+
 pub fn closeHandle() !void {
     return terminal_impl.closeHandle();
 }

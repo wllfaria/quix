@@ -12,6 +12,10 @@ var original_terminal_mode: ?std.posix.termios = null;
 var global_tty_fd_mutex: std.Thread.Mutex = .{};
 var global_tty_fd: ?FileDesc = null;
 
+pub fn hasAnsiSupport() bool {
+    return true;
+}
+
 pub fn closeHandle() !void {
     global_tty_fd_mutex.lock();
     defer global_tty_fd_mutex.unlock();

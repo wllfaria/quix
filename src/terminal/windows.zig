@@ -36,6 +36,9 @@ fn ansiInitializer() void {
     has_ansi_support.store(true, .seq_cst);
 }
 
+// nothing to do here
+pub fn closeHandle() !void {}
+
 pub fn isRawModeEnabled() ConsoleError!bool {
     const handle = try quix_winapi.handle.getCurrentInHandle();
     const mode = try console.getMode(handle);
