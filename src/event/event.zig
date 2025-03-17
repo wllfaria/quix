@@ -162,6 +162,10 @@ pub const MouseEvent = struct {
     mods: KeyMods,
 };
 
+pub fn poll(timeout_ms: u32) !bool {
+    return event_impl.poll(timeout_ms);
+}
+
 /// Blocking read from handle until a new event is available.
 pub fn read() !Event {
     return event_impl.read();

@@ -9,7 +9,7 @@ const FileDesc = @import("../file_desc.zig");
 const terminal = @import("../terminal/windows.zig");
 const constants = @import("../constants.zig");
 const event = @import("event.zig");
-const Event = @import("event.zig").Event;
+const Event = event.Event;
 
 const ENABLE_MOUSE_MODE =
     quix_winapi.ENABLE_MOUSE_INPUT |
@@ -51,6 +51,18 @@ pub fn disableMouse() !void {
     const handle = try quix_winapi.handle.getCurrentInHandle();
     const origina_mode = try getOriginalMode();
     try quix_winapi.console.setMode(handle, origina_mode);
+}
+
+pub fn poll(_: u32) !bool {
+    if (terminal.hasAnsiSupport()) {
+        const handle = try quix_winapi.handle.getCurrentInHandle();
+        const bytes_available = try quix_winapi.console.peekNamedPipe(handle);
+        return bytes_available > 0;
+    } else {
+        const handle = try quix_winapi.handle.getCurrentInHandle();
+        const events_read = try quix_winapi.console.peekInput(handle);
+        return events_read > 0;
+    }
 }
 
 pub fn read() !Event {
