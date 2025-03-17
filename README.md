@@ -75,18 +75,15 @@ pub fn build(b: *std.Build) void {
 Modify your `src/main.zig` to look like this:
 
 ```zig
-const std = @import("std");
 const quix = @import("quix");
 
 pub fn main() !void {
-    const fd = std.posix.STDOUT_FILENO;
-
     const styled = quix.style.new("Hello from quix!\n")
         .foreground(.White)
         .background(.DarkRed)
         .bold();
 
-    try quix.style.printStyled(fd, styled);
+    try quix.style.printStyled(styled);
 }
 ```
 
