@@ -4,6 +4,7 @@ const windows = std.os.windows;
 const quix_winapi = @import("quix_winapi");
 const ConsoleError = quix_winapi.ConsoleError;
 const console = quix_winapi.console;
+const constants = @import("../constants.zig");
 const screen_buffer = quix_winapi.screen_buffer;
 
 const ansi = @import("../ansi/ansi.zig");
@@ -84,9 +85,67 @@ pub fn size() ConsoleError!terminal.Size {
 }
 
 pub fn setSize(columns: u16, rows: u16) !void {
-    _ = columns; // autofix
-    _ = rows; // autofix
-    @panic("TODO");
+    if (hasAnsiSupport()) {
+        const handle = try quix_winapi.handle.getCurrentOutHandle();
+        try ansi.csi(handle.writer(), ansi.SET_SIZE_FMT, .{ rows, columns });
+        return;
+    }
+
+    const handle = try quix_winapi.handle.getCurrentOutHandle();
+    const csbi = try quix_winapi.console.getInfo(handle);
+
+    const current_size = csbi.bufferSize();
+    var window = csbi.terminalWindow();
+
+    var new_size = quix_winapi.Size{
+        .width = current_size.width,
+        .height = current_size.height,
+    };
+
+    var resize_buffer = false;
+
+    const width = @as(u16, @intCast(columns));
+    if (current_size.width < window.left + width) {
+        if (window.left >= constants.I16_MAX - width) return error.TerminalWidthTooLarge;
+        new_size.width = window.left + width;
+        resize_buffer = true;
+    }
+
+    const height = @as(u16, @intCast(rows));
+    if (current_size.height < window.top + height) {
+        if (window.top > constants.I16_MAX - height) return error.TerminalHeightTooLarge;
+        new_size.height = window.top + height;
+        resize_buffer = true;
+    }
+
+    // if the window would be bigger than the buffer, there might be clipping or
+    // scrolling issues, resizing the buffer here temporarily avoids that.
+    if (resize_buffer) {
+        try quix_winapi.console.setSize(
+            handle,
+            new_size.width - 1,
+            new_size.height - 1,
+        );
+    }
+
+    // update window size preserving its position
+    window.bottom = window.top + height - 1;
+    window.right = window.left + width - 1;
+    try quix_winapi.console.setInfo(handle, .absolute, window);
+
+    // if the buffer was resized, un-resize it to maintain the original size.
+    if (resize_buffer) {
+        try quix_winapi.console.setSize(
+            handle,
+            current_size.width - 1,
+            current_size.height - 1,
+        );
+    }
+
+    const bounds = try quix_winapi.console.largestWindowSize(handle);
+
+    if (width > bounds.x) return error.TerminalWidthTooLarge;
+    if (height > bounds.y) return error.TerminalHeightTooLarge;
 }
 
 pub fn disableLineWrap() ConsoleError!void {

@@ -109,7 +109,7 @@ pub fn windowSize() !WindowSize {
 
 pub fn setSize(columns: u16, rows: u16) !void {
     const fd = try getFd();
-    try ansi.csi(fd.writer(), "8;{};{}t", .{ rows, columns });
+    try ansi.csi(fd.writer(), ansi.SET_SIZE_FMT, .{ rows, columns });
 }
 
 // when getting the size of the terminal, we can either use the `windowSize`
@@ -166,47 +166,47 @@ pub fn tputValue(arg: []const u8) !u16 {
 
 pub fn disableLineWrap() !void {
     const fd = try getFd();
-    try ansi.csi(fd.writer(), "?7l", .{});
+    try ansi.csi(fd.writer(), ansi.DISABLE_LINE_WRAP_FMT, .{});
 }
 
 pub fn enableLineWrap() !void {
     const fd = try getFd();
-    try ansi.csi(fd.writer(), "?7h", .{});
+    try ansi.csi(fd.writer(), ansi.ENABLE_LINE_WRAP_FMT, .{});
 }
 
 pub fn enterAlternateScreen() !void {
     const fd = try getFd();
-    try ansi.csi(fd.writer(), "?1049h", .{});
+    try ansi.csi(fd.writer(), ansi.ENTER_ALTERNATE_SCREEN_FMT, .{});
 }
 
 pub fn exitAlternateScreen() !void {
     const fd = try getFd();
-    try ansi.csi(fd.writer(), "?1049l", .{});
+    try ansi.csi(fd.writer(), ansi.EXIT_ALTERNATE_SCREEN_FMT, .{});
 }
 
 pub fn scrollUp(amount: u16) !void {
     if (amount != 0) {
         const fd = try getFd();
-        try ansi.csi(fd.writer(), "{}S", .{amount});
+        try ansi.csi(fd.writer(), ansi.SCROLL_UP_FMT, .{amount});
     }
 }
 
 pub fn scrollDown(amount: u16) !void {
     if (amount != 0) {
         const fd = try getFd();
-        try ansi.csi(fd.writer(), "{}T", .{amount});
+        try ansi.csi(fd.writer(), ansi.SCROLL_DOWN_FMT, .{amount});
     }
 }
 
 pub fn clear(clear_type: terminal.ClearType) !void {
     const fd = try getFd();
     switch (clear_type) {
-        .All => try ansi.csi(fd.writer(), "2J", .{}),
-        .Purge => try ansi.csi(fd.writer(), "3J", .{}),
-        .FromCursorDown => try ansi.csi(fd.writer(), "J", .{}),
-        .FromCursorUp => try ansi.csi(fd.writer(), "1J", .{}),
-        .CurrentLine => try ansi.csi(fd.writer(), "2K", .{}),
-        .UntilNewline => try ansi.csi(fd.writer(), "K", .{}),
+        .All => try ansi.csi(fd.writer(), ansi.CLEAR_ALL_FMT, .{}),
+        .Purge => try ansi.csi(fd.writer(), ansi.CLEAR_PURGE_FMT, .{}),
+        .FromCursorDown => try ansi.csi(fd.writer(), ansi.CLEAR_CURSOR_DOWN_FMT, .{}),
+        .FromCursorUp => try ansi.csi(fd.writer(), ansi.CLEAR_CURSOR_UP_FMT, .{}),
+        .CurrentLine => try ansi.csi(fd.writer(), ansi.CLEAR_CURRENT_LINE_FMT, .{}),
+        .UntilNewline => try ansi.csi(fd.writer(), ansi.CLEAR_UNTIL_NEWLINE_FMT, .{}),
     }
 }
 

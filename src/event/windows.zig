@@ -18,6 +18,15 @@ const ENABLE_MOUSE_MODE =
 
 var ORIGINAL_MODE = std.atomic.Value(u64).init(constants.U64_MAX);
 
+const MouseButtonsPressed = struct {
+    left: bool = false,
+    right: bool = false,
+    middle: bool = false,
+};
+
+var mouse_buttons_pressed_mutex: std.Thread.Mutex = .{};
+var mouse_buttons_pressed: MouseButtonsPressed = .{};
+
 fn initOriginalMode(original_mode: u32) void {
     _ = ORIGINAL_MODE.cmpxchgWeak(constants.U64_MAX, original_mode, .acq_rel, .acq_rel);
 }
@@ -86,7 +95,23 @@ fn readFile() !Event {
 fn parseInputRecord(input_record: quix_winapi.InputRecord) !Event {
     return switch (input_record) {
         .KeyEvent => |ev| parseKeyEvent(ev),
-        .MouseEvent => |ev| parseMouseEvent(ev),
+        .MouseEvent => |ev| blk: {
+            mouse_buttons_pressed_mutex.lock();
+            defer mouse_buttons_pressed_mutex.unlock();
+
+            const mouse_event = try parseMouseEvent(ev, mouse_buttons_pressed);
+
+            // update current pressed buttons to be able to dictate whether or
+            // not we are double clicking, dragging, pressing or releasing a
+            // button
+            mouse_buttons_pressed = MouseButtonsPressed{
+                .left = ev.button_state.leftButtonPressed(),
+                .right = ev.button_state.rightButtonPressed(),
+                .middle = ev.button_state.middleButtonPressed(),
+            };
+
+            break :blk mouse_event;
+        },
         .WindowBufferSizeEvent => |ev| parseBufferSizeEvent(ev),
         .MenuEvent => |ev| parseMenuEvent(ev),
         .FocusEvent => |ev| parseFocusEvent(ev),
@@ -97,16 +122,97 @@ fn parseKeyEvent(_: quix_winapi.KeyEventRecord) !Event {
     @panic("TODO");
 }
 
-fn parseMouseEvent(_: quix_winapi.MouseEventRecord) !Event {
-    @panic("TODO");
+fn parseMouseEvent(
+    ev: quix_winapi.MouseEventRecord,
+    buttons_pressed: MouseButtonsPressed,
+) !Event {
+    var kind: ?event.MouseEventKind = null;
+
+    if (ev.event_flags.pressOrRelease() or ev.event_flags.double_click) {
+        if (ev.button_state.leftButtonPressed() and !buttons_pressed.left) {
+            kind = event.MouseEventKind{ .Down = .Left };
+        } else if (!ev.button_state.leftButtonPressed() and buttons_pressed.left) {
+            kind = event.MouseEventKind{ .Up = .Left };
+        } else if (ev.button_state.rightButtonPressed() and !buttons_pressed.left) {
+            kind = event.MouseEventKind{ .Down = .Right };
+        } else if (!ev.button_state.rightButtonPressed() and buttons_pressed.left) {
+            kind = event.MouseEventKind{ .Up = .Right };
+        } else if (ev.button_state.middleButtonPressed() and !buttons_pressed.middle) {
+            kind = event.MouseEventKind{ .Down = .Middle };
+        } else if (!ev.button_state.middleButtonPressed() and buttons_pressed.middle) {
+            kind = event.MouseEventKind{ .Up = .Middle };
+        }
+    } else if (ev.event_flags.mouse_move) {
+        const button = if (ev.button_state.rightButtonPressed()) blk: {
+            break :blk event.MouseButton.Right;
+        } else if (ev.button_state.middleButtonPressed()) blk: {
+            break :blk event.MouseButton.Middle;
+        } else event.MouseButton.Left;
+
+        if (ev.button_state.releaseButton()) {
+            kind = event.MouseEventKind.Moved;
+        } else {
+            kind = event.MouseEventKind{ .Drag = button };
+        }
+    } else if (ev.event_flags.mouse_scroll) {
+        if (ev.button_state.scrollUp()) {
+            kind = event.MouseEventKind.ScrollUp;
+        } else if (ev.button_state.scrollDown()) {
+            kind = event.MouseEventKind.ScrollUp;
+        }
+    } else {
+        // horizontal scroll.
+        if (ev.button_state.scrollLeft()) {
+            kind = event.MouseEventKind.ScrollLeft;
+        } else if (ev.button_state.scrollRight) {
+            kind = event.MouseEventKind.ScrollRight;
+        }
+    }
+
+    const mods = event.KeyMods{
+        .shift = ev.control_key_state.shift,
+        .control = ev.control_key_state.controlPressed(),
+        .alt = ev.control_key_state.altPressed(),
+        // legacy WinAPI doesn't support modifiers below
+        .super = false,
+        .hyper = false,
+        .meta = false,
+    };
+
+    const column = @as(u16, @intCast(ev.mouse_position.x));
+    const row = @as(u16, @intCast(try convertRelativeY(ev.mouse_position.y)));
+
+    const mouse_event = event.MouseEvent{
+        .kind = kind.?,
+        .column = column,
+        .row = row,
+        .mods = mods,
+    };
+
+    return Event{ .MouseEvent = mouse_event };
 }
 
-fn parseBufferSizeEvent(_: quix_winapi.WindowBufferSizeRecord) !Event {
-    @panic("TODO");
+fn convertRelativeY(y: i16) !i16 {
+    const handle = try quix_winapi.handle.getCurrentOutHandle();
+    const csbi = try quix_winapi.console.getInfo(handle);
+    const window_size = csbi.terminalWindow();
+    return y - window_size.top;
 }
+
+fn parseBufferSizeEvent(ev: quix_winapi.WindowBufferSizeRecord) !Event {
+    const columns = @as(u16, @intCast(ev.size.x));
+    const rows = @as(u16, @intCast(ev.size.y));
+
+    return Event{ .Resize = .{
+        .columns = columns,
+        .rows = rows,
+    } };
+}
+
 fn parseMenuEvent(_: quix_winapi.MenuEventRecord) !Event {
-    @panic("TODO");
+    return error.ReservedEvent;
 }
-fn parseFocusEvent(_: quix_winapi.FocusEventRecord) !Event {
-    @panic("TODO");
+
+fn parseFocusEvent(ev: quix_winapi.FocusEventRecord) !Event {
+    return if (ev.set_focus) event.Event.FocusGained else event.Event.FocusLost;
 }

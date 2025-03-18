@@ -126,10 +126,17 @@ pub const Key = struct {
     event_kind: KeyEventKind = .Press,
 };
 
+pub const ResizeEvent = struct {
+    columns: u16,
+    rows: u16,
+};
+
 /// Represent an terminal event.
 pub const Event = union(EventKind) {
     /// A key event, such as user input.
     KeyEvent: Key,
+    /// Terminal was resized
+    Resize: ResizeEvent,
     /// Terminal was focused.
     FocusGained,
     /// Terminal lost focus.
