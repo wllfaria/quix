@@ -22,6 +22,7 @@ pub fn main() !void {
     var line: u16 = 5;
     while (true) {
         try quix.cursor.moveTo(0, line);
+        try quix.terminal.clear(.CurrentLine);
 
         const event = try quix.event.read();
         switch (event) {
@@ -36,12 +37,18 @@ pub fn main() !void {
 
                 try quix.style.print("code: ");
 
-                const code = quix.style.new(&.{key.code}).foreground(.Yellow);
+                var key_code: [4]u8 = undefined;
+                const key_utf8 = try key.toUtf8(&key_code);
+                const code = quix.style.new(key_utf8).foreground(.Yellow);
                 try quix.style.printStyled(code);
 
                 try quix.style.print(" kind: ");
                 const kind = quix.style.new(key.kind.toString()).foreground(.Yellow);
                 try quix.style.printStyled(kind);
+
+                try quix.style.print(" event: ");
+                const event_kind = quix.style.new(key.event_kind.toString()).foreground(.Yellow);
+                try quix.style.printStyled(event_kind);
 
                 line += 1;
             },

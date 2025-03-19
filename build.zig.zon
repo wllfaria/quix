@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.14.0",
     .dependencies = .{
         .quix_winapi = .{
-            .url = "git+https://github.com/wllfaria/quix-winapi#32d24c1a094de7d2d98b3b279bc3521b937d34a7",
-            .hash = "quix_winapi-0.0.0-XdkcU-CBAAArwN_H0MeYsVOp8Vwxl_l5A5KxJBtu4Uxa",
+            .url = "git+https://github.com/wllfaria/quix-winapi#5e149c5e67052092b10d199d9bff209107010b52",
+            .hash = "quix_winapi-0.0.0-XdkcUxuXAAB35R_wCoL9y6j_6W4BetWYchgdnJG3CGn9",
         },
     },
     .paths = .{

@@ -8,6 +8,7 @@ const constants = @import("../constants.zig");
 const screen_buffer = quix_winapi.screen_buffer;
 
 const ansi = @import("../ansi/ansi.zig");
+const cursor = @import("../cursor/windows.zig");
 const terminal = @import("terminal.zig");
 
 const COOKED_MODE_FLAGS: windows.DWORD =
@@ -230,12 +231,112 @@ pub fn scrollDown(amount: u16) !void {
 
 pub fn clear(clear_type: terminal.ClearType) !void {
     const handle = try quix_winapi.handle.getCurrentOutHandle();
-    switch (clear_type) {
-        .All => try ansi.csi(handle.writer(), ansi.CLEAR_ALL_FMT, .{}),
-        .Purge => try ansi.csi(handle.writer(), ansi.CLEAR_PURGE_FMT, .{}),
-        .FromCursorDown => try ansi.csi(handle.writer(), ansi.CLEAR_CURSOR_DOWN_FMT, .{}),
-        .FromCursorUp => try ansi.csi(handle.writer(), ansi.CLEAR_CURSOR_UP_FMT, .{}),
-        .CurrentLine => try ansi.csi(handle.writer(), ansi.CLEAR_CURRENT_LINE_FMT, .{}),
-        .UntilNewline => try ansi.csi(handle.writer(), ansi.CLEAR_UNTIL_NEWLINE_FMT, .{}),
+
+    if (hasAnsiSupport()) {
+        switch (clear_type) {
+            .All => try ansi.csi(handle.writer(), ansi.CLEAR_ALL_FMT, .{}),
+            .Purge => try ansi.csi(handle.writer(), ansi.CLEAR_PURGE_FMT, .{}),
+            .FromCursorDown => try ansi.csi(handle.writer(), ansi.CLEAR_CURSOR_DOWN_FMT, .{}),
+            .FromCursorUp => try ansi.csi(handle.writer(), ansi.CLEAR_CURSOR_UP_FMT, .{}),
+            .CurrentLine => try ansi.csi(handle.writer(), ansi.CLEAR_CURRENT_LINE_FMT, .{}),
+            .UntilNewline => try ansi.csi(handle.writer(), ansi.CLEAR_UNTIL_NEWLINE_FMT, .{}),
+        }
+        return;
     }
+
+    const csbi = try console.getInfo(handle);
+    const pos = csbi.cursorPosition();
+    const buffer_size = csbi.bufferSize();
+    const attributes = csbi.attributes();
+
+    switch (clear_type) {
+        .All => try clearEntireScreen(buffer_size, attributes),
+        .FromCursorDown => try clearAfterCursor(pos, buffer_size, attributes),
+        .FromCursorUp => try clearBeforeCursor(pos, buffer_size, attributes),
+        .CurrentLine => try clearCurrentLine(pos, buffer_size, attributes),
+        .UntilNewline => try clearUntilNewline(pos, buffer_size, attributes),
+        else => try clearEntireScreen(buffer_size, attributes),
+    }
+}
+
+fn clearEntireScreen(buffer_size: quix_winapi.Size, attributes: u16) !void {
+    const width = @as(u32, @intCast(buffer_size.width));
+    const height = @as(u32, @intCast(buffer_size.height));
+    const total_cells: u32 = width * height;
+    const start_location = quix_winapi.Coord.new(0, 0);
+    try clearWinapi(start_location, total_cells, attributes);
+    try cursor.moveTo(0, 0);
+}
+
+fn clearAfterCursor(
+    position: quix_winapi.Coord,
+    buffer_size: quix_winapi.Size,
+    attributes: u16,
+) !void {
+    var x = position.x;
+    var y = position.y;
+
+    if (x > buffer_size.width) {
+        x = 0;
+        y += 1;
+    }
+
+    const start_location = quix_winapi.Coord.new(x, y);
+    const width = @as(u32, @intCast(buffer_size.width));
+    const height = @as(u32, @intCast(buffer_size.height));
+    const total_cells: u32 = width * height;
+
+    try clearWinapi(start_location, total_cells, attributes);
+}
+
+fn clearBeforeCursor(
+    position: quix_winapi.Coord,
+    buffer_size: quix_winapi.Size,
+    attributes: u16,
+) !void {
+    const xPos = @as(u32, @intCast(position.x));
+    const yPos = @as(u32, @intCast(position.x));
+
+    const x = 0;
+    const y = 0;
+
+    const start_location = quix_winapi.Coord.new(x, y);
+    const width = @as(u32, @intCast(buffer_size.width));
+    const total_cells: u32 = (width * yPos) + (xPos + 1);
+
+    try clearWinapi(start_location, total_cells, attributes);
+}
+
+fn clearCurrentLine(
+    position: quix_winapi.Coord,
+    buffer_size: quix_winapi.Size,
+    attributes: u16,
+) !void {
+    const start_location = quix_winapi.Coord.new(0, position.y);
+    const total_cells: u32 = @as(u32, @intCast(buffer_size.width));
+
+    try clearWinapi(start_location, total_cells, attributes);
+    try cursor.moveTo(0, @as(u16, @intCast(position.y)));
+}
+
+fn clearUntilNewline(
+    position: quix_winapi.Coord,
+    buffer_size: quix_winapi.Size,
+    attributes: u16,
+) !void {
+    const x = position.x;
+    const y = position.y;
+
+    const start_location = quix_winapi.Coord.new(x, y);
+    const width = @as(u32, @intCast(buffer_size.width));
+    const total_cells: u32 = width - @as(u32, @intCast(x));
+
+    try clearWinapi(start_location, total_cells, attributes);
+    try cursor.moveTo(@as(u16, @intCast(position.x)), @as(u16, @intCast(position.y)));
+}
+
+fn clearWinapi(start_location: quix_winapi.Coord, total_cells: u32, attribute: u16) !void {
+    const handle = try quix_winapi.handle.getCurrentOutHandle();
+    _ = try console.fillWithChar(handle, ' ', total_cells, start_location);
+    _ = try console.fillWithAttribute(handle, attribute, total_cells, start_location);
 }

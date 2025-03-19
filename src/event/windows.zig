@@ -26,6 +26,8 @@ const MouseButtonsPressed = struct {
 
 var mouse_buttons_pressed_mutex: std.Thread.Mutex = .{};
 var mouse_buttons_pressed: MouseButtonsPressed = .{};
+var surrogate_buffer_mutex: std.Thread.Mutex = .{};
+var surrogate_buffer: ?u16 = null;
 
 fn initOriginalMode(original_mode: u32) void {
     _ = ORIGINAL_MODE.cmpxchgWeak(constants.U64_MAX, original_mode, .acq_rel, .acq_rel);
@@ -77,9 +79,12 @@ pub fn poll(_: u32) !bool {
 pub fn read() !Event {
     if (terminal.hasAnsiSupport()) return readFile();
 
-    const handle = try quix_winapi.handle.getCurrentInHandle();
-    const input_record = try console.readSingleInput(handle);
-    return parseInputRecord(input_record);
+    while (true) {
+        const handle = try quix_winapi.handle.getCurrentInHandle();
+        const input_record = try console.readSingleInput(handle);
+        const ev = try parseInputRecord(input_record);
+        if (ev) |e| return e;
+    }
 }
 
 fn readFile() !Event {
@@ -92,10 +97,33 @@ fn readFile() !Event {
     }
 }
 
-fn parseInputRecord(input_record: quix_winapi.InputRecord) !Event {
-    return switch (input_record) {
-        .KeyEvent => |ev| parseKeyEvent(ev),
-        .MouseEvent => |ev| blk: {
+fn parseInputRecord(input_record: quix_winapi.InputRecord) !?Event {
+    switch (input_record) {
+        .KeyEvent => |ev| {
+            surrogate_buffer_mutex.lock();
+            defer surrogate_buffer_mutex.unlock();
+            const win_event = parseKeyEvent(ev) orelse return null;
+
+            switch (win_event) {
+                .Event => |e| {
+                    // when a valid event is constructed, discard any
+                    // surrogates, even if the previous one was partial
+                    surrogate_buffer = null;
+                    return e;
+                },
+                .Surrogate => |s| {
+                    const ch = parseSurrogate(&surrogate_buffer, s) orelse return null;
+                    const mods = modsFromControlState(ev.control_key_state);
+                    return Event{ .KeyEvent = .{
+                        .code = ch,
+                        .event_kind = .Press,
+                        .kind = .Char,
+                        .mods = mods,
+                    } };
+                },
+            }
+        },
+        .MouseEvent => |ev| {
             mouse_buttons_pressed_mutex.lock();
             defer mouse_buttons_pressed_mutex.unlock();
 
@@ -110,16 +138,140 @@ fn parseInputRecord(input_record: quix_winapi.InputRecord) !Event {
                 .middle = ev.button_state.middleButtonPressed(),
             };
 
-            break :blk mouse_event;
+            return mouse_event;
         },
-        .WindowBufferSizeEvent => |ev| parseBufferSizeEvent(ev),
-        .MenuEvent => |ev| parseMenuEvent(ev),
-        .FocusEvent => |ev| parseFocusEvent(ev),
-    };
+        .WindowBufferSizeEvent => |ev| {
+            const result = try parseBufferSizeEvent(ev);
+            return result;
+        },
+        .MenuEvent => |ev| {
+            const result = try parseMenuEvent(ev);
+            return result;
+        },
+        .FocusEvent => |ev| {
+            const result = try parseFocusEvent(ev);
+            return result;
+        },
+    }
 }
 
-fn parseKeyEvent(_: quix_winapi.KeyEventRecord) !Event {
-    @panic("TODO");
+pub fn parseSurrogate(buffer: *?u16, new_surrogate: u16) ?u32 {
+    if (buffer.* == null) {
+        buffer.* = new_surrogate;
+        return null;
+    }
+
+    const char = std.unicode.utf16DecodeSurrogatePair(&.{
+        buffer.*.?,
+        new_surrogate,
+    }) catch unreachable;
+
+    buffer.* = null;
+    return @as(u32, char);
+}
+
+const WindowsEvent = union(enum) {
+    Event: Event,
+    Surrogate: u16,
+};
+
+fn parseKeyEvent(ev: quix_winapi.KeyEventRecord) ?WindowsEvent {
+    const mods = modsFromControlState(ev.control_key_state);
+    const virtual_key = ev.virtual_key_code;
+
+    const result = switch (virtual_key) {
+        quix_winapi.VK_SHIFT, quix_winapi.VK_CONTROL, quix_winapi.VK_MENU => null,
+        quix_winapi.VK_BACK => event.KeyKind.Backspace,
+        quix_winapi.VK_ESCAPE => event.KeyKind.Esc,
+        quix_winapi.VK_RETURN => event.KeyKind.Enter,
+        quix_winapi.VK_LEFT => event.KeyKind.Left,
+        quix_winapi.VK_UP => event.KeyKind.Up,
+        quix_winapi.VK_RIGHT => event.KeyKind.Right,
+        quix_winapi.VK_DOWN => event.KeyKind.Down,
+        quix_winapi.VK_PRIOR => event.KeyKind.PageUp,
+        quix_winapi.VK_NEXT => event.KeyKind.PageDown,
+        quix_winapi.VK_HOME => event.KeyKind.Home,
+        quix_winapi.VK_END => event.KeyKind.End,
+        quix_winapi.VK_DELETE => event.KeyKind.Delete,
+        quix_winapi.VK_INSERT => event.KeyKind.Insert,
+        quix_winapi.VK_TAB => if (mods.shift) event.KeyKind.BackTab else event.KeyKind.Tab,
+        else => blk: {
+            if (virtual_key >= quix_winapi.VK_F1 and virtual_key <= quix_winapi.VK_F24) {
+                break :blk event.KeyKind.Function;
+            }
+
+            const utf16 = ev.u_char;
+
+            if (utf16 >= 0x00 and utf16 <= 0x1F) {
+                break :blk event.KeyKind.Char;
+            } else if (std.unicode.utf16IsLowSurrogate(utf16)) {
+                return WindowsEvent{ .Surrogate = utf16 };
+            } else {
+                break :blk event.KeyKind.Char;
+            }
+        },
+    };
+
+    const char = if (result) |kind| switch (kind) {
+        .Char => getCharForKey(ev),
+        .Function => 1,
+        else => null,
+    } else null;
+
+    const event_kind: event.KeyEventKind = if (ev.key_down) .Press else .Release;
+
+    if (result) |kind| {
+        return WindowsEvent{
+            .Event = Event{ .KeyEvent = .{
+                .kind = kind,
+                .mods = mods,
+                .event_kind = event_kind,
+                .code = if (char) |ch| ch else @as(u32, ev.u_char),
+            } },
+        };
+    }
+
+    return null;
+}
+
+/// Tries to return the character for a key accounting for user keyboard layout
+///
+/// Returns null when the event doesn't map to a character or when the key is
+/// dead.
+///
+/// Uses the currently active keyboard to check which key an event maps. Which
+/// may be wrong, as terminals process user input asynchronously. There is a
+/// chance the user might have changed its layout in between the event being
+/// fired and the processing starting. But this is unlikely to happen.
+fn getCharForKey(ev: quix_winapi.KeyEventRecord) ?u32 {
+    const virtual_key = @as(u32, ev.virtual_key_code);
+    const virtual_scan = @as(u32, ev.virtual_scan_code);
+    const key_state = [_]u8{0} ** 256;
+    var utf16_buf = [_]u16{0} ** 16;
+    const dont_change_kernel_keyboard_state = 0x4;
+
+    const foreground_window = quix_winapi.getForegroundWindow();
+    const foreground_thread = quix_winapi.getWindowThreadProcessId(foreground_window, null);
+    const keyboard_layout = quix_winapi.getKeyboardLayout(foreground_thread);
+
+    const result = quix_winapi.toUnicodeEx(
+        virtual_key,
+        virtual_scan,
+        &key_state,
+        @ptrCast(&utf16_buf),
+        @as(i32, @intCast(utf16_buf.len)),
+        dont_change_kernel_keyboard_state,
+        keyboard_layout,
+    );
+
+    // -1 means its a dead key
+    //  0 means no character for key
+    if (result < 1) return null;
+
+    // Key doesn't map to a single character (surrogate pair)
+    if (result > 1) return null;
+
+    return @as(u32, utf16_buf[0]);
 }
 
 fn parseMouseEvent(
@@ -164,20 +316,12 @@ fn parseMouseEvent(
         // horizontal scroll.
         if (ev.button_state.scrollLeft()) {
             kind = event.MouseEventKind.ScrollLeft;
-        } else if (ev.button_state.scrollRight) {
+        } else if (ev.button_state.scrollRight()) {
             kind = event.MouseEventKind.ScrollRight;
         }
     }
 
-    const mods = event.KeyMods{
-        .shift = ev.control_key_state.shift,
-        .control = ev.control_key_state.controlPressed(),
-        .alt = ev.control_key_state.altPressed(),
-        // legacy WinAPI doesn't support modifiers below
-        .super = false,
-        .hyper = false,
-        .meta = false,
-    };
+    const mods = modsFromControlState(ev.control_key_state);
 
     const column = @as(u16, @intCast(ev.mouse_position.x));
     const row = @as(u16, @intCast(try convertRelativeY(ev.mouse_position.y)));
@@ -192,6 +336,20 @@ fn parseMouseEvent(
     return Event{ .MouseEvent = mouse_event };
 }
 
+fn modsFromControlState(
+    control_state: quix_winapi.ControlKeyState,
+) event.KeyMods {
+    return event.KeyMods{
+        .shift = control_state.shift,
+        .control = control_state.controlPressed(),
+        .alt = control_state.altPressed(),
+        // legacy WinAPI doesn't support modifiers below
+        .super = false,
+        .hyper = false,
+        .meta = false,
+    };
+}
+
 fn convertRelativeY(y: i16) !i16 {
     const handle = try quix_winapi.handle.getCurrentOutHandle();
     const csbi = try quix_winapi.console.getInfo(handle);
@@ -200,8 +358,8 @@ fn convertRelativeY(y: i16) !i16 {
 }
 
 fn parseBufferSizeEvent(ev: quix_winapi.WindowBufferSizeRecord) !Event {
-    const columns = @as(u16, @intCast(ev.size.x));
-    const rows = @as(u16, @intCast(ev.size.y));
+    const columns = @as(u16, @intCast(@as(i32, ev.size.x) + 1));
+    const rows = @as(u16, @intCast(@as(i32, ev.size.y) + 1));
 
     return Event{ .Resize = .{
         .columns = columns,

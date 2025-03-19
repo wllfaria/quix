@@ -12,6 +12,7 @@ const event_impl = switch (builtin.os.tag) {
 
 const EventKind = enum {
     KeyEvent,
+    Resize,
     FocusGained,
     FocusLost,
     MouseEvent,
@@ -110,12 +111,21 @@ pub const KeyKind = enum {
 /// Whick kind of key event was received.
 pub const KeyEventKind = enum {
     Press,
+    Release,
+
+    /// Returns a string representation of the key kind
+    pub fn toString(self: @This()) []const u8 {
+        return switch (self) {
+            .Press => "press",
+            .Release => "release",
+        };
+    }
 };
 
 /// Represents a Key Event.
 pub const Key = struct {
-    /// The actual byte of the key event
-    code: u8,
+    /// The actual key code of the key event
+    code: u32,
     /// Which kind of event it is.
     ///
     /// This is useful for special keys, such as `Enter` or `BackTab`.
@@ -124,6 +134,13 @@ pub const Key = struct {
     mods: KeyMods,
     /// Which kind of key event this is.
     event_kind: KeyEventKind = .Press,
+
+    /// Converts the key code to a UTF-8 encoded slice.
+    pub fn toUtf8(self: Key, buffer: *[4]u8) ![]const u8 {
+        std.debug.assert(buffer.len >= 4);
+        const len = try std.unicode.utf8Encode(@intCast(self.code), buffer);
+        return buffer[0..len];
+    }
 };
 
 pub const ResizeEvent = struct {
@@ -211,7 +228,7 @@ test "event is" {
     try std.testing.expect(event.isMouse());
 
     event = Event{ .KeyEvent = .{
-        .code = 65,
+        .code = .{65},
         .event_kind = .Press,
         .kind = .Char,
         .mods = .{},
